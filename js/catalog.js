@@ -3,7 +3,7 @@
  * As chaves devem bater EXATAMENTE com as classes criadas no Teachable Machine.
  */
 const CATALOGO_LIVROS = {
-  "o_morro_dos_ventos_uivantes": {
+  "ventos_uivantes": {
     titulo: "O Morro dos Ventos Uivantes",
     autor: "Emily Brontë",
     categoria: "Romance clássico",
@@ -13,6 +13,7 @@ const CATALOGO_LIVROS = {
     restricao: false,
     capa: "📗"
   },
+
   "pequeno_principe": {
     titulo: "O Pequeno Príncipe",
     autor: "Antoine de Saint-Exupéry",
@@ -23,6 +24,7 @@ const CATALOGO_LIVROS = {
     restricao: false,
     capa: "📘"
   },
+
   "romeu_julieta": {
     titulo: "Romeu e Julieta",
     autor: "William Shakespeare",
@@ -32,5 +34,16 @@ const CATALOGO_LIVROS = {
     prazoDias: 7,
     restricao: false,
     capa: "📕"
+  },
+
+  "intermitencia_morte": {
+    titulo: "As Intermitências da Morte",
+    autor: "José Saramago",
+    categoria: "Ficção filosófica",
+    area: "Literatura",
+    sinopse: "Num país não identificado, a morte decide suspender suas atividades e ninguém mais morre.",
+    prazoDias: 14,
+    restricao: false,
+    capa: "🖤"
   }
 };

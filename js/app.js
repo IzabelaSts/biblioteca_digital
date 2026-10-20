@@ -13,7 +13,7 @@ let temporizadorRelogio = null;
 let sessaoID = null;
 
 const LIMITE_VOLUMES = 10;
-const LIMIAR_RECONHECIMENTO = 0.85; // Ajustado para facilidade de leitura no telemóvel
+const LIMIAR_RECONHECIMENTO = 0.85;
 const $ = (id) => document.getElementById(id);
 
 document.addEventListener("DOMContentLoaded", iniciarAplicacao);
@@ -88,7 +88,7 @@ async function iniciarReconhecimento() {
 
     const flip = true; 
     webcam = new tmImage.Webcam(320, 240, flip);
-    await webcam.setup({ facingMode: "environment" }); // Suporte preferencial para câmera traseira em telemóveis
+    await webcam.setup({ facingMode: "environment" });
     await webcam.play();
 
     $("camera-placeholder")?.remove();
@@ -123,7 +123,7 @@ async function iniciarReconhecimento() {
 
 function traduzirErroCamera(error) {
   if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-    return "Permita o acesso à câmera nas configurações do telemóvel/navegador.";
+    return "Permita o acesso à câmera nas configurações do navegador.";
   }
   if (error?.name === "NotFoundError") return "Nenhuma câmera foi encontrada.";
   return error?.message || "Erro de ligação com a câmera.";
