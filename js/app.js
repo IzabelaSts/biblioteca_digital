@@ -14,8 +14,11 @@ const LIMIAR_RECONHECIMENTO = 0.85;
 // Diferença mínima necessária entre a 1ª e a 2ª maior probabilidade (evita indecisão)
 const MARGEM_INDECISAO = 0.30;
 
-// Quantos quadros seguidos o MESMO livro precisa aparecer continuamente
+// Quantos quadros seguidos o MESMO livro precisa aparecer continuamente para confirmar
 const QUADROS_PARA_CONFIRMAR = 5;
+
+// Quantos quadros seguidos de erro são necessários para exibir "Livro não encontrado" (estabiliza a tela)
+const QUADROS_PARA_ERRO = 10;
 
 // Espelhar a imagem da webcam
 const ESPELHAR_IMAGEM = false;
@@ -39,10 +42,13 @@ let historicoSessao = [];
 let temporizadorRelogio = null;
 let animFrameID = null;
 let sessaoID = null;
+
+// Contadores de estabilização
 let candidato = null;
 let contagemCandidato = 0;
+let contagemErro = 0;
 
-// Trava temporária para evitar a oscilação/flicker das informações na tela
+// Trava temporária após registrar um empréstimo
 let pausaDetecao = false;
 
 const $ = (id) => document.getElementById(id);
@@ -261,7 +267,6 @@ async function loopReconhecimento() {
 }
 
 async function preverLivro() {
-  // Se a pausa estiver ativa, ignora novas análises para estabilizar a interface
   if (pausaDetecao || !cameraAtiva || !webcam || !model) return;
 
   const previsoes = await model.predict(webcam.canvas);
@@ -279,31 +284,30 @@ async function preverLivro() {
       : `Lendo: '${idLivro}' (${porcentagem}%).`;
   }
 
-  // 1. Filtro de confiança mínima
-  if (melhor.probability < LIMIAR_RECONHECIMENTO) {
+  // Verificação de leitura inválida ou fora do catálogo
+  const leituraInvalida = 
+    melhor.probability < LIMIAR_RECONHECIMENTO ||
+    (segundoMelhor && (melhor.probability - segundoMelhor.probability < MARGEM_INDECISAO)) ||
+    !localizarNoCatalogo(idLivro);
+
+  if (leituraInvalida) {
     reiniciarConfirmacao();
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Aguardando capa de livro...";
-    // NÃO chama mostrarErroLivro() aqui para evitar que o cartão pisque!
+    contagemErro++;
+
+    // Só altera o cartão para erro se a falha persisti por vários quadros seguidos
+    if (contagemErro >= QUADROS_PARA_ERRO) {
+      if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
+      mostrarErroLivro("Esta capa não pertence a nenhum livro cadastrado no catálogo.");
+    } else if ($("texto-scanner")) {
+      $("texto-scanner").textContent = "Ajustando leitura...";
+    }
     return;
   }
 
-  // 2. Filtro de indecisão
-  if (segundoMelhor && (melhor.probability - segundoMelhor.probability < MARGEM_INDECISAO)) {
-    reiniciarConfirmacao();
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Ajuste a posição do livro";
-    return;
-  }
+  // Se a leitura for válida, reseta o contador de erros acumulados
+  contagemErro = 0;
 
-  // 3. Validação no catálogo
-  const existeNoCatalogo = localizarNoCatalogo(idLivro);
-  if (!existeNoCatalogo) {
-    reiniciarConfirmacao();
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
-    mostrarErroLivro(`A classe '${idLivro}' não está cadastrada no catálogo.`);
-    return;
-  }
-
-  // 4. Validação de quadros consecutivos
+  // Validação de quadros consecutivos para confirmar o livro
   if (idLivro === candidato) {
     contagemCandidato++;
   } else {
@@ -316,13 +320,13 @@ async function preverLivro() {
     return;
   }
 
-  // 5. Se o livro já tiver sido lido nesta mesma exibição
+  // Se o livro já foi lido recentemente
   if (idLivro === ultimoLivroLido) {
     if ($("texto-scanner")) $("texto-scanner").textContent = "Livro já lido — mostre o próximo livro";
     return;
   }
 
-  // 6. Sucesso: registra o empréstimo
+  // Sucesso: registra o empréstimo
   if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido!";
   ultimoLivroLido = idLivro;
   processarEmprestimo(idLivro);
@@ -378,7 +382,7 @@ function processarEmprestimo(idReconhecido) {
   const { id, livro } = encontrado;
   mostrarDetalhesLivro(id, livro);
 
-  // Ativa a pausa de 3 segundos para dar tempo do utilizador remover o livro da câmara sem oscilar a tela
+  // Ativa a pausa de 3 segundos para estabilizar a exibição
   pausaDetecao = true;
   setTimeout(() => {
     pausaDetecao = false;
@@ -523,7 +527,6 @@ function atualizarHistoricoDOM() {
       item.className = "history-item";
       item.style.cursor = "pointer";
 
-      // Clique no cartão abre os detalhes no painel principal
       item.addEventListener("click", () => {
         mostrarDetalhesLivro(livro.id, livro);
       });
@@ -547,7 +550,6 @@ function atualizarHistoricoDOM() {
 
       copia.append(titulo, categoria, devolucao);
 
-      // Botão de remoção (X)
       const btnRemover = document.createElement("button");
       btnRemover.type = "button";
       btnRemover.className = "btn-remover-item";
@@ -555,7 +557,7 @@ function atualizarHistoricoDOM() {
       btnRemover.textContent = "✕";
       
       btnRemover.addEventListener("click", (e) => {
-        e.stopPropagation(); // Evita abrir os detalhes ao clicar no X
+        e.stopPropagation();
         removerLivroDoHistorico(index);
       });
 
@@ -717,6 +719,7 @@ function fecharModal() {
   ultimoLivroLido = null;
   atendimentoFinalizado = false;
   pausaDetecao = false;
+  contagemErro = 0;
   reiniciarConfirmacao();
 
   $("card-livro")?.classList.add("hidden");
@@ -733,6 +736,7 @@ function fecharModal() {
 function pararCamera() {
   cameraAtiva = false;
   pausaDetecao = false;
+  contagemErro = 0;
 
   if (animFrameID) {
     window.cancelAnimationFrame(animFrameID);
