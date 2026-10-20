@@ -174,7 +174,7 @@ async function iniciarReconhecimento() {
     const flip = ESPELHAR_IMAGEM;
     webcam = new tmImage.Webcam(400, 300, flip);
 
-    // Solicita o acesso (com timeout de captura tratando AbortError)
+    // Solicita o acesso à câmera
     await webcam.setup({ facingMode: "environment" });
     await webcam.play();
 
@@ -205,7 +205,7 @@ async function iniciarReconhecimento() {
   } catch (error) {
     console.error("Erro ao iniciar a câmera/modelo:", error);
     
-    // Se o erro for AbortError, limpa o estado interno para permitir um novo clique direto
+    // Se houver erro, garante a limpeza do hardware da câmera
     pararCamera();
     
     definirEstadoSistema("erro", "Erro de câmera");
@@ -217,6 +217,7 @@ async function iniciarReconhecimento() {
     if ($("btn-camera")) $("btn-camera").disabled = atendimentoFinalizado;
   }
 }
+
 function traduzirErroCamera(error) {
   const nome = error?.name;
   if (nome === "NotAllowedError" || nome === "PermissionDeniedError") {
@@ -340,7 +341,7 @@ function processarEmprestimo(idReconhecido) {
   const encontrado = localizarNoCatalogo(idReconhecido);
 
   if (!encontrado) {
-    mostrarErroLivro(`Classe '${idReconhecido}' reconhecida, mas não cadastrada no catalog.js.`);
+    mostrarErroLivro(`Classe '${idReconhecido}' reconhecida, mas não cadastrada no catálogo.`);
     return;
   }
 
@@ -596,7 +597,7 @@ function pararCamera() {
   }
 
   if (webcam) {
-    webcam.stop();
+    try { webcam.stop(); } catch (e) {}
     webcam = null;
   }
 
