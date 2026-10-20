@@ -6,14 +6,14 @@ let cameraAtiva = false;
 let cameraEmInicializacao = false;
 let atendimentoFinalizado = false;
 let ultimoLivroLido = null;
+let livroPendenteId = null;
 let historicoSessao = [];
 let livrosBloqueados = new Set();
 let temporizadorRelogio = null;
 let sessaoID = null;
 
 const LIMITE_VOLUMES = 10;
-const LIMIAR_RECONHECIMENTO = 0.95;
-
+const LIMIAR_RECONHECIMENTO = 0.85; // Ajustado para facilidade de leitura no telemóvel
 const $ = (id) => document.getElementById(id);
 
 document.addEventListener("DOMContentLoaded", iniciarAplicacao);
@@ -21,16 +21,14 @@ document.addEventListener("DOMContentLoaded", iniciarAplicacao);
 function iniciarAplicacao() {
   atualizarRelogio();
   temporizadorRelogio = window.setInterval(atualizarRelogio, 1000);
-
   atualizarInterfaceSessao();
+  atualizarHistoricoDOM();
   configurarBotaoCamera();
 
   $("btn-finalizar")?.addEventListener("click", finalizarAtendimento);
   $("btn-fechar-modal")?.addEventListener("click", fecharModal);
   $("btn-nova-sessao")?.addEventListener("click", fecharModal);
   $("btn-imprimir")?.addEventListener("click", imprimirComprovante);
-
-  iniciarReconhecimento();
 }
 
 function atualizarRelogio() {
@@ -74,96 +72,61 @@ function configurarBotaoCamera() {
 }
 
 async function iniciarReconhecimento() {
-  if (cameraEmInicializacao || cameraAtiva) return;
+  if (cameraEmInicializacao || cameraAtiva || atendimentoFinalizado) return;
   cameraEmInicializacao = true;
-
   if ($("btn-camera")) $("btn-camera").disabled = true;
-  if ($("status-leitura")) $("status-leitura").textContent = "A preparar o modelo de reconhecimento...";
-  if ($("texto-scanner")) $("texto-scanner").textContent = "A preparar a câmara...";
-  
+  if ($("status-leitura")) $("status-leitura").textContent = "A carregar modelo do Teachable Machine...";
+  if ($("texto-scanner")) $("texto-scanner").textContent = "A ligar câmara...";
   definirEstadoSistema("aguardar", "A preparar sistema");
-  definirEstadoIA("aguardar", "A iniciar");
+  definirEstadoIA("aguardar", "A carregar");
 
   try {
-    if (!window.tmImage) throw new Error("A biblioteca de reconhecimento não foi carregada.");
-
+    if (!window.tmImage) throw new Error("Biblioteca do Teachable Machine não encontrada.");
     if (!model) {
-      const modelURL = URL_MODELO + "model.json";
-      const metadataURL = URL_MODELO + "metadata.json";
-      model = await tmImage.load(modelURL, metadataURL);
+      model = await tmImage.load(URL_MODELO + "model.json", URL_MODELO + "metadata.json");
     }
 
-    const flip = true;
+    const flip = true; 
     webcam = new tmImage.Webcam(320, 240, flip);
-    await webcam.setup();
-
-    $("camera-placeholder")?.remove();
+    await webcam.setup({ facingMode: "environment" }); // Suporte preferencial para câmera traseira em telemóveis
     await webcam.play();
 
-    if ($("webcam-container")) $("webcam-container").replaceChildren(webcam.canvas);
-
+    $("camera-placeholder")?.remove();
+    if ($("webcam-container")) {
+      const container = $("webcam-container");
+      const oldCanvas = container.querySelector("canvas");
+      if (oldCanvas) oldCanvas.remove();
+      container.appendChild(webcam.canvas);
+    }
+    
     cameraAtiva = true;
 
-    if ($("btn-camera")) $("btn-camera").textContent = "Desativar câmara";
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Câmara ativa — aproxime a capa do livro";
-    if ($("status-leitura")) $("status-leitura").textContent = "Aproxime a capa do livro para reconhecimento.";
-
+    if ($("btn-camera")) $("btn-camera").textContent = "Desativar câmera";
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Câmera ativa — aproxime o livro";
+    if ($("status-leitura")) $("status-leitura").textContent = "Aproxime a capa do livro para o reconhecimento.";
     document.querySelector(".scan-indicator")?.classList.add("is-active");
-
     definirEstadoSistema("ativo", "Sistema ativo");
-    definirEstadoIA("pronto", "IA pronta");
-
+    definirEstadoIA("pronto", "IA Pronta");
     window.requestAnimationFrame(cicloReconhecimento);
   } catch (error) {
-    console.error("Erro ao iniciar o reconhecimento:", error);
+    console.error("Erro ao iniciar a câmera:", error);
     cameraAtiva = false;
-    definirEstadoSistema("erro", "Verifique a câmara");
-    definirEstadoIA("erro", "Indisponível");
-
+    definirEstadoSistema("erro", "Erro de câmera");
+    definirEstadoIA("erro", "Erro");
     if ($("status-leitura")) $("status-leitura").textContent = traduzirErroCamera(error);
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Não foi possível iniciar a leitura.";
-
-    $("camera-placeholder")?.remove();
-    if ($("webcam-container") && !$("webcam-container").querySelector("canvas")) {
-      mostrarPlaceholderCamera("Câmara indisponível", "Verifique as permissões e tente novamente.");
-    }
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Não foi possível ligar a câmara.";
   } finally {
     cameraEmInicializacao = false;
-    if ($("btn-camera")) $("btn-camera").disabled = false;
+    if ($("btn-camera")) $("btn-camera").disabled = atendimentoFinalizado;
   }
 }
 
 function traduzirErroCamera(error) {
   if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-    return "Permita o acesso à câmara nas definições do navegador.";
+    return "Permita o acesso à câmera nas configurações do telemóvel/navegador.";
   }
-  if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") {
-    return "Não foi encontrada nenhuma câmara disponível.";
-  }
-  if (error?.name === "NotReadableError") {
-    return "A câmara pode estar a ser utilizada por outra aplicação.";
-  }
-  return error?.message || "Não foi possível ligar à câmara ou carregar o modelo.";
-}
-
-function mostrarPlaceholderCamera(titulo, mensagem) {
-  const placeholder = document.createElement("div");
-  placeholder.id = "camera-placeholder";
-  placeholder.className = "camera-placeholder";
-
-  const icone = document.createElement("div");
-  icone.className = "camera-icon";
-  icone.textContent = "📷";
-
-  const tituloElemento = document.createElement("strong");
-  tituloElemento.textContent = titulo;
-
-  const mensagemElemento = document.createElement("p");
-  mensagemElemento.textContent = mensagem;
-
-  placeholder.append(icone, tituloElemento, mensagemElemento);
-
-  if ($("webcam-container")) $("webcam-container").replaceChildren(placeholder);
+  if (error?.name === "NotFoundError") return "Nenhuma câmera foi encontrada.";
+  return error?.message || "Erro de ligação com a câmera.";
 }
 
 async function cicloReconhecimento() {
@@ -172,35 +135,36 @@ async function cicloReconhecimento() {
     webcam.update();
     await preverLivro();
   } catch (error) {
-    console.error("Erro durante o reconhecimento:", error);
-    if ($("status-leitura")) $("status-leitura").textContent = "Erro durante a leitura. Tente novamente.";
+    console.error("Erro no ciclo:", error);
   }
-
-  if (cameraAtiva) {
-    window.requestAnimationFrame(cicloReconhecimento);
-  }
+  if (cameraAtiva) window.requestAnimationFrame(cicloReconhecimento);
 }
 
 async function preverLivro() {
+  if (livroPendenteId) return;
+
   const previsoes = await model.predict(webcam.canvas);
+  if (!previsoes?.length) return;
+
   const melhor = previsoes.reduce((anterior, atual) =>
     atual.probability > anterior.probability ? atual : anterior
   );
 
   if (melhor.probability < LIMIAR_RECONHECIMENTO) {
     ultimoLivroLido = null;
-    if ($("status-leitura")) $("status-leitura").textContent = "Aproxime a capa do livro e mantenha-a estável.";
+    if ($("status-leitura")) $("status-leitura").textContent = "Aproxime o livro e mantenha estável.";
     if ($("texto-scanner")) $("texto-scanner").textContent = "À procura de um livro...";
     return;
   }
 
   const idLivro = melhor.className;
+  const porcentagem = Math.round(melhor.probability * 100);
 
   if ($("status-leitura")) {
-    $("status-leitura").textContent = `Livro identificado (${Math.round(melhor.probability * 100)}%).`;
+    $("status-leitura").textContent = `Livro identificado (${porcentagem}% de certeza).`;
   }
-  if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido pela câmara.";
-
+  if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido!";
+  
   if (idLivro === ultimoLivroLido) return;
 
   ultimoLivroLido = idLivro;
@@ -209,38 +173,68 @@ async function preverLivro() {
 
 function processarEmprestimo(idLivro) {
   if (atendimentoFinalizado) return;
-
-  const livro = CATALOGO_LIVROS[idLivro];
+  const livro = CATALOGO_LIVROS?.[idLivro];
 
   if (!livro) {
-    mostrarErroLivro(`O livro identificado (${idLivro}) não está no catálogo.`);
+    mostrarErroLivro(`Classe '${idLivro}' não cadastrada no catalog.js.`);
     return;
   }
 
   mostrarDetalhesLivro(livro);
+  removerBotaoConfirmacao();
 
   if (livro.restricao) {
-    definirEstadoEmprestimo(`Consulta local apenas. O empréstimo de "${livro.titulo}" não está autorizado.`, "error");
+    definirEstadoEmprestimo(`Consulta local apenas. "${livro.titulo}" indisponível para empréstimo.`, "error");
     return;
   }
-
   if (historicoSessao.some((item) => item.id === idLivro)) {
-    definirEstadoEmprestimo("Este livro já está registado nesta sessão.", "success");
+    definirEstadoEmprestimo("Este livro já foi adicionado à sessão.", "success");
     return;
   }
-
   if (historicoSessao.length >= LIMITE_VOLUMES) {
-    definirEstadoEmprestimo(`Limite de ${LIMITE_VOLUMES} volumes por sessão atingido.`, "error");
+    definirEstadoEmprestimo(`Limite de ${LIMITE_VOLUMES} volumes atingido.`, "error");
     return;
   }
 
-  if (livrosBloqueados.has(idLivro)) {
-    definirEstadoEmprestimo("Este livro já foi processado nesta sessão.", "error");
-    return;
+  livroPendenteId = idLivro;
+  definirEstadoEmprestimo("Livro identificado! Clique no botão abaixo para confirmar.", "success");
+  criarBotaoConfirmacao();
+}
+
+function criarBotaoConfirmacao() {
+  const card = $("card-livro");
+  if (!card) return;
+  let botao = $("btn-confirmar-emprestimo");
+
+  if (!botao) {
+    botao = document.createElement("button");
+    botao.id = "btn-confirmar-emprestimo";
+    botao.type = "button";
+    botao.className = "btn-confirmar-emprestimo";
+    botao.textContent = "Confirmar Empréstimo";
+    botao.addEventListener("click", confirmarEmprestimo);
+    card.appendChild(botao);
   }
+  botao.hidden = false;
+  botao.disabled = false;
+}
+
+function removerBotaoConfirmacao() {
+  const botao = $("btn-confirmar-emprestimo");
+  if (botao) {
+    botao.hidden = true;
+    botao.disabled = true;
+  }
+}
+
+function confirmarEmprestimo() {
+  if (!livroPendenteId || atendimentoFinalizado) return;
+  const idLivro = livroPendenteId;
+  const livro = CATALOGO_LIVROS?.[idLivro];
+
+  if (!livro) return;
 
   const dataDevolucao = calcularDevolucao(livro.prazoDias);
-
   historicoSessao.push({
     id: idLivro,
     ...livro,
@@ -248,8 +242,9 @@ function processarEmprestimo(idLivro) {
     dataDevolucao
   });
 
-  livrosBloqueados.add(idLivro);
-  definirEstadoEmprestimo(`Empréstimo autorizado. Devolução prevista até ${formatarData(dataDevolucao)}.`, "success");
+  livroPendenteId = null;
+  removerBotaoConfirmacao();
+  definirEstadoEmprestimo(`Adicionado com sucesso! Devolução até ${formatarData(dataDevolucao)}.`, "success");
   atualizarHistoricoDOM();
 }
 
@@ -273,18 +268,20 @@ function definirEstadoEmprestimo(mensagem, estado) {
 
 function mostrarErroLivro(mensagem) {
   $("card-livro")?.classList.remove("hidden");
-  if ($("livro-area")) $("livro-area").textContent = "Catálogo";
-  if ($("livro-categoria")) $("livro-categoria").textContent = "Não identificado";
-  if ($("livro-titulo")) $("livro-titulo").textContent = "Livro não registado";
-  if ($("livro-autor")) $("livro-autor").textContent = "Autor desconhecido";
-  if ($("livro-sinopse")) $("livro-sinopse").textContent = "Não foi possível associar a imagem a um livro do catálogo.";
-  if ($("livro-capa")) $("livro-capa").textContent = "📖";
+  if ($("livro-area")) $("livro-area").textContent = "Aviso";
+  if ($("livro-categoria")) $("livro-categoria").textContent = "Não Cadastrado";
+  if ($("livro-titulo")) $("livro-titulo").textContent = "Livro não encontrado";
+  if ($("livro-autor")) $("livro-autor").textContent = "-";
+  if ($("livro-sinopse")) $("livro-sinopse").textContent = "A classe reconhecida não tem correspondência no arquivo de catálogo.";
+  if ($("livro-capa")) $("livro-capa").textContent = "❓";
+  removerBotaoConfirmacao();
+  livroPendenteId = null;
   definirEstadoEmprestimo(mensagem, "error");
 }
 
 function calcularDevolucao(prazoDias) {
   const data = new Date();
-  data.setDate(data.getDate() + prazoDias);
+  data.setDate(data.getDate() + Number(prazoDias || 0));
   return data;
 }
 
@@ -295,74 +292,45 @@ function formatarData(data) {
 function atualizarHistoricoDOM() {
   const lista = $("lista-historico");
   if (!lista) return;
-
   lista.replaceChildren();
 
   if (historicoSessao.length === 0) {
-    const itemVazio = document.createElement("li");
-    itemVazio.className = "history-empty";
-
-    const icone = document.createElement("span");
-    icone.className = "empty-book";
-    icone.textContent = "📚";
-
-    const titulo = document.createElement("strong");
-    titulo.textContent = "A sua estante está à espera";
-
-    const texto = document.createElement("p");
-    texto.textContent = "Os livros reconhecidos aparecerão aqui.";
-
-    itemVazio.append(icone, titulo, texto);
-    lista.appendChild(itemVazio);
+    lista.innerHTML = `
+      <li class="history-empty">
+        <span class="empty-book">📚</span>
+        <strong>A sua estante está à espera</strong>
+        <p>Os livros reconhecidos aparecerão aqui.</p>
+      </li>
+    `;
   } else {
     historicoSessao.forEach((livro) => {
       const item = document.createElement("li");
       item.className = "history-item";
-
-      const icone = document.createElement("span");
-      icone.className = "history-book-icon";
-      icone.textContent = livro.capa || "📖";
-
-      const conteudo = document.createElement("div");
-      conteudo.className = "history-book-copy";
-
-      const titulo = document.createElement("strong");
-      titulo.textContent = livro.titulo;
-
-      const categoria = document.createElement("small");
-      categoria.textContent = livro.categoria;
-
-      const devolucao = document.createElement("small");
-      devolucao.className = "history-due";
-      devolucao.textContent = `Devolução: ${formatarData(livro.dataDevolucao)}`;
-
-      conteudo.append(titulo, categoria, devolucao);
-      item.append(icone, conteudo);
+      item.innerHTML = `
+        <span class="history-book-icon">${livro.capa || "📖"}</span>
+        <div class="history-book-copy">
+          <strong>${livro.titulo}</strong>
+          <small>${livro.categoria}</small>
+          <small class="history-due">Devolução: ${formatarData(livro.dataDevolucao)}</small>
+        </div>
+      `;
       lista.appendChild(item);
     });
   }
-
   atualizarInterfaceSessao();
 }
 
 function atualizarInterfaceSessao() {
   const quantidade = historicoSessao.length;
-
   if ($("contador-volumes")) $("contador-volumes").textContent = quantidade;
-  if ($("total-historico")) $("total-historico").textContent = quantidade;
-
-  if ($("btn-finalizar")) {
-    $("btn-finalizar").disabled = quantidade === 0 || atendimentoFinalizado;
-  }
-
+  if ($("total-historico")) $("total-historico").textContent = `${quantidade} ${quantidade === 1 ? 'livro' : 'livros'}`;
+  if ($("btn-finalizar")) $("btn-finalizar").disabled = quantidade === 0 || atendimentoFinalizado;
   if ($("progresso-sessao")) {
     $("progresso-sessao").style.width = `${Math.min((quantidade / LIMITE_VOLUMES) * 100, 100)}%`;
   }
-
   if ($("texto-contador")) {
     if (quantidade === 0) $("texto-contador").textContent = "Ainda não selecionou nenhum livro.";
-    else if (quantidade === 1) $("texto-contador").textContent = "Tem 1 livro nesta sessão.";
-    else $("texto-contador").textContent = `Tem ${quantidade} livros nesta sessão.`;
+    else $("texto-contador").textContent = `${quantidade} de ${LIMITE_VOLUMES} volumes adicionados.`;
   }
 }
 
@@ -370,7 +338,8 @@ function finalizarAtendimento() {
   if (historicoSessao.length === 0 || atendimentoFinalizado) return;
 
   atendimentoFinalizado = true;
-  sessaoID = "BD-" + Date.now().toString().slice(-8);
+  pararCamera();
+  sessaoID = "BD-" + Date.now().toString().slice(-6);
 
   if ($("recibo-id")) $("recibo-id").textContent = sessaoID;
   if ($("recibo-data")) $("recibo-data").textContent = new Date().toLocaleString("pt-BR");
@@ -386,36 +355,19 @@ function finalizarAtendimento() {
     });
   }
 
-  const resumo = {
-    biblioteca: "Biblioteca Digital",
-    sessao: sessaoID,
-    data: new Date().toISOString(),
-    volumes: historicoSessao.map((livro) => ({
-      titulo: livro.titulo,
-      autor: livro.autor,
-      devolucao: formatarData(livro.dataDevolucao)
-    }))
-  };
-
   const qrContainer = $("qrcode-container");
   if (qrContainer) {
     qrContainer.replaceChildren();
     if (window.QRCode) {
       new QRCode(qrContainer, {
-        text: JSON.stringify(resumo),
-        width: 140,
-        height: 140,
-        correctLevel: QRCode.CorrectLevel.M
+        text: `Sessão: ${sessaoID} | Total: ${historicoSessao.length} livro(s)`,
+        width: 130,
+        height: 130
       });
-    } else {
-      qrContainer.textContent = "QR Code indisponível. Utilize a opção de impressão.";
     }
   }
 
   $("modal-comprovante")?.classList.remove("hidden");
-
-  if ($("btn-finalizar")) $("btn-finalizar").disabled = true;
-  if ($("btn-camera")) $("btn-camera").disabled = true;
 }
 
 function imprimirComprovante() {
@@ -424,67 +376,33 @@ function imprimirComprovante() {
 
 function fecharModal() {
   $("modal-comprovante")?.classList.add("hidden");
-
   historicoSessao = [];
-  livrosBloqueados = new Set();
+  livrosBloqueados.clear();
   ultimoLivroLido = null;
+  livroPendenteId = null;
   atendimentoFinalizado = false;
-  sessaoID = null;
 
+  removerBotaoConfirmacao();
   $("card-livro")?.classList.add("hidden");
-
-  if ($("recibo-livros")) $("recibo-livros").replaceChildren();
-  if ($("qrcode-container")) $("qrcode-container").replaceChildren();
-
   atualizarHistoricoDOM();
 
-  if ($("status-leitura")) {
-    $("status-leitura").textContent = cameraAtiva
-      ? "Sessão reiniciada. Aproxime a capa do próximo livro."
-      : "Sessão reiniciada. Ative a câmara para continuar.";
-  }
-
   if ($("btn-camera")) $("btn-camera").disabled = false;
-  if ($("texto-scanner")) {
-    $("texto-scanner").textContent = cameraAtiva
-      ? "Câmara ativa — aproxime a capa do livro"
-      : "Ative a câmara para começar.";
-  }
 }
 
 function pararCamera() {
   cameraAtiva = false;
-
   if (webcam) {
-    try {
-      webcam.stop();
-    } catch (error) {
-      console.warn("Não foi possível parar a câmara:", error);
-    }
+    try { webcam.stop(); } catch (e) {}
     webcam = null;
   }
-
-  if ($("webcam-container")) $("webcam-container").replaceChildren();
-
-  mostrarPlaceholderCamera("Câmara desativada", "Ative a câmara quando estiver pronto.");
-
-  if ($("btn-camera")) $("btn-camera").textContent = "Ativar câmara";
-  if ($("texto-scanner")) $("texto-scanner").textContent = "Câmara desativada";
-  if ($("status-leitura")) $("status-leitura").textContent = "A câmara foi desligada.";
-
   document.querySelector(".scan-indicator")?.classList.remove("is-active");
-
-  definirEstadoIA("aguardar", "Em pausa");
+  if ($("btn-camera")) $("btn-camera").textContent = "Ativar câmera";
+  if ($("texto-scanner")) $("texto-scanner").textContent = "Câmera desativada";
+  definirEstadoIA("aguardar", "Desativada");
   definirEstadoSistema("aguardar", "Em pausa");
 }
 
 window.addEventListener("beforeunload", () => {
   if (temporizadorRelogio) clearInterval(temporizadorRelogio);
-  if (webcam) {
-    try {
-      webcam.stop();
-    } catch (error) {
-      console.warn(error);
-    }
-  }
+  if (webcam) { try { webcam.stop(); } catch (e) {} }
 });

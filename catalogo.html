@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo | Biblioteca Digital</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Correção dos caminhos conforme a estrutura de arquivos da imagem -->
+    <script src="js/catalog.js" defer></script>
+    <script src="js/catalogo-pag.js" defer></script>
+</head>
+
+<body>
+
+    <header class="header">
+        <a href="index.html" class="brand">
+            <span class="brand-mark">📚</span>
+            <span>
+                <strong>Biblioteca Digital</strong>
+                <small>Um mundo de histórias</small>
+            </span>
+        </a>
+
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link">Atendimento</a>
+            <a href="catalogo.html" class="nav-link active">Catálogo</a>
+        </nav>
+    </header>
+
+    <main class="page-container catalog-page">
+
+        <section class="catalog-hero">
+            <span class="eyebrow">NOSSA COLEÇÃO</span>
+            <h1>Explore o catálogo</h1>
+            <p>Descubra novas histórias, conheça os livros disponíveis e encontre sua próxima leitura.</p>
+        </section>
+
+        <section class="catalog-controls">
+            <div class="search-field">
+                <span>🔍</span>
+                <input type="search" id="pesquisa-livros" placeholder="Digite o título ou o autor..." autocomplete="off">
+            </div>
+
+            <div class="filter-field">
+                <span>Categoria:</span>
+                <select id="filtro-categoria">
+                    <option value="">Todas as categorias</option>
+                </select>
+            </div>
+        </section>
+
+        <div class="catalog-results-heading">
+            <h2>Livros disponíveis</h2>
+            <span id="quantidade-livros">Carregando...</span>
+        </div>
+
+        <section id="lista-livros" class="catalog-grid" aria-live="polite">
+            <!-- Inserido dinamicamente pelo JS -->
+        </section>
+
+        <p id="mensagem-vazia" class="empty-catalog hidden">
+            Nenhum livro encontrado. Tente outra pesquisa.
+        </p>
+
+        <section class="catalog-cta">
+            <div>
+                <h2>Já escolheu sua leitura?</h2>
+                <p>Acesse o atendimento digital para reconhecer os livros pela câmera e organizar sua sessão de empréstimo.</p>
+            </div>
+            <a href="index.html" class="button button-primary">Ir para o atendimento</a>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <span>📚 Biblioteca Digital</span>
+        <span>Reconhecimento e Empréstimo de Livros</span>
+    </footer>
+
+</body>
+
+</html>

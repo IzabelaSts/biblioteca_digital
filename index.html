@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Biblioteca Digital: reconhecimento de livros e atendimento bibliotecário automatizado.">
+    <meta name="description" content="Biblioteca Digital: reconhecimento de livros e atendimento automatizado.">
     <title>Biblioteca Digital | Atendimento Inteligente</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 
-    <!-- TensorFlow.js & Teachable Machine -->
+    <!-- TensorFlow.js & Teachable Machine & QRCode -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -24,8 +24,8 @@
 <body>
     <!-- CABEÇALHO -->
     <header class="header">
-        <a href="#" class="brand">
-            <span class="brand-icon">📚</span>
+        <a href="index.html" class="brand">
+            <span class="brand-mark">📚</span>
             <span>
                 <strong>Biblioteca Digital</strong>
                 <small>Um mundo de histórias</small>
@@ -43,6 +43,11 @@
                 <span id="estado-sistema">A preparar sistema</span>
             </div>
         </div>
+
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link active">Atendimento</a>
+            <a href="catalogo.html" class="nav-link">Catálogo</a>
+        </nav>
     </header>
 
     <main class="page-container">
@@ -53,23 +58,15 @@
                 <span class="eyebrow">SUA BIBLIOTECA, SEM ESPERAS</span>
                 <h1>Uma história<br>espera por si.</h1>
                 <p>Descubra o seu próximo livro. Aproxime a capa da câmera, confirme os dados e leve a sua próxima leitura consigo.</p>
-                <div class="hero-features">
-                    <span>✓ Simples</span>
-                    <span>✓ Rápido</span>
-                    <span>✓ Autônomo</span>
+                <div class="hero-actions">
+                    <a href="catalogo.html" class="button button-secondary">Ver Catálogo Completo</a>
                 </div>
             </div>
 
             <div class="hero-decoration" aria-hidden="true">
-                <div class="book-decoration book-one"></div>
-                <div class="book-decoration book-two"></div>
-                <div class="book-decoration book-three"></div>
-                <span class="decoration-star star-one">✳</span>
-                <span class="decoration-star star-two">✦</span>
-                <div class="decoration-caption">
-                    <span>O próximo capítulo</span>
-                    <strong>começa aqui.</strong>
-                </div>
+                <div class="decor-book book-one"></div>
+                <div class="decor-book book-two"></div>
+                <div class="decor-book book-three"></div>
             </div>
         </section>
 
@@ -87,69 +84,42 @@
                             <h2>Reconhecimento inteligente</h2>
                             <p>Identifique o livro através da sua capa.</p>
                         </div>
-                        <span class="ai-badge" id="ai-status">A iniciar</span>
+                        <span class="status-badge status-waiting" id="ai-status">A iniciar</span>
                     </div>
 
-                    <div class="camera-frame">
-                        <div id="webcam-container" class="webcam-container">
-                            <div id="camera-placeholder" class="camera-placeholder">
-                                <div class="camera-icon">
-                                    <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.4">
-                                        <rect x="3" y="6" width="18" height="14" rx="3"></rect>
-                                        <circle cx="12" cy="13" r="4"></circle>
-                                        <path d="M8 6l1.5-3h5L16 6"></path>
-                                    </svg>
-                                </div>
-                                <strong>Câmera pronta para começar</strong>
-                                <p>Ative a câmera e aproxime a capa de um livro.</p>
-                            </div>
+                    <div class="webcam-container" id="webcam-container">
+                        <div id="camera-placeholder" class="camera-placeholder">
+                            <div class="camera-icon">📷</div>
+                            <strong>Câmera pronta para começar</strong>
+                            <p>Ative a câmera e aproxime a capa de um livro.</p>
                         </div>
-
                         <div class="scan-indicator">
-                            <span></span>
-                            <span id="texto-scanner">Aguardando ativação da câmera</span>
+                            <span></span><span></span><span></span><span></span>
                         </div>
                     </div>
+
+                    <p class="scanner-caption" id="texto-scanner">Aguardando ativação da câmera</p>
 
                     <div class="camera-actions">
-                        <button id="btn-camera" class="btn btn-primary" type="button">
-                            <span>◎</span> Ativar câmera
+                        <button id="btn-camera" class="button button-primary button-wide" type="button">
+                            Ativar câmera
                         </button>
-                        <p id="status-leitura" aria-live="polite">A câmera está pronta para iniciar.</p>
+                        <p id="status-leitura" class="status-message" aria-live="polite">A câmera está pronta para iniciar.</p>
                     </div>
                 </section>
 
                 <!-- DETALHES DO LIVRO -->
                 <section id="card-livro" class="card book-details hidden">
-                    <div class="section-heading">
-                        <div>
-                            <span class="eyebrow">RESULTADO DO RECONHECIMENTO</span>
-                            <h2>Livro identificado</h2>
+                    <div id="livro-capa" class="book-cover">📖</div>
+                    <div class="book-copy">
+                        <span id="livro-area" class="book-area">Literatura</span>
+                        <h3 id="livro-titulo">Título do livro</h3>
+                        <p class="book-author"><strong>Autor:</strong> <span id="livro-autor">Nome do autor</span></p>
+                        <span id="livro-categoria" class="category-pill">Categoria</span>
+                        <p id="livro-sinopse" class="book-synopsis">A sinopse do livro aparecerá aqui.</p>
+                        <div id="livro-status" class="loan-status" aria-live="polite">
+                            Aguardando identificação do livro.
                         </div>
-                        <span class="result-icon">✓</span>
-                    </div>
-
-                    <div class="detected-book">
-                        <div id="livro-capa" class="book-cover">📖</div>
-                        <div class="detected-book-info">
-                            <span id="livro-area" class="book-area">Literatura</span>
-                            <h3 id="livro-titulo">Título do livro</h3>
-                            <p class="book-author">
-                                <strong>Autor:</strong> <span id="livro-autor">Nome do autor</span>
-                            </p>
-                            <p class="book-category">
-                                <strong>Categoria:</strong> <span id="livro-categoria">Categoria</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="synopsis">
-                        <h3>Sobre esta leitura</h3>
-                        <p id="livro-sinopse">A sinopse do livro aparecerá aqui.</p>
-                    </div>
-
-                    <div id="livro-status" class="loan-status" aria-live="polite">
-                        Aguardando identificação do livro.
                     </div>
                 </section>
 
@@ -165,29 +135,24 @@
                             <span class="eyebrow">SUA SELEÇÃO</span>
                             <h2>Volumes retirados</h2>
                         </div>
-                        <span class="counter-icon">📚</span>
-                    </div>
-
-                    <div class="counter-number">
-                        <span id="contador-volumes">0</span>
-                        <span class="counter-limit">/ 10 volumes</span>
+                        <div class="counter">
+                            <strong id="contador-volumes">0</strong>
+                            <small>/ 10</small>
+                        </div>
                     </div>
 
                     <div class="progress-track">
                         <div id="progresso-sessao" class="progress-bar"></div>
                     </div>
 
-                    <p id="texto-contador" class="muted-text">Ainda não selecionou nenhum livro.</p>
+                    <p id="texto-contador" class="muted">Ainda não selecionou nenhum livro.</p>
                 </section>
 
                 <!-- HISTÓRICO -->
                 <section class="card history-card">
-                    <div class="section-heading">
-                        <div>
-                            <span class="eyebrow">NESTE ATENDIMENTO</span>
-                            <h2>Minha estante</h2>
-                        </div>
-                        <span id="total-historico" class="history-count">0</span>
+                    <div class="history-heading">
+                        <h3>Minha estante</h3>
+                        <span id="total-historico">0 livros</span>
                     </div>
 
                     <ul id="lista-historico" class="history-list">
@@ -197,16 +162,11 @@
                             <p>Os livros reconhecidos aparecerão aqui.</p>
                         </li>
                     </ul>
-
-                    <div class="history-footer">
-                        <span>Limite por atendimento</span>
-                        <strong>10 livros</strong>
-                    </div>
                 </section>
 
                 <!-- REGRAS -->
-                <section class="notice-card">
-                    <span class="notice-icon">✦</span>
+                <section class="help-card">
+                    <span class="help-icon">✦</span>
                     <div>
                         <strong>Leitura sem complicações</strong>
                         <p>Confira os dados de cada livro antes de finalizar seu atendimento.</p>
@@ -214,11 +174,10 @@
                 </section>
 
                 <!-- FINALIZAÇÃO -->
-                <button id="btn-finalizar" class="btn btn-finalize" type="button" disabled>
-                    Finalizar atendimento <span>→</span>
+                <button id="btn-finalizar" class="button button-primary button-wide" type="button" disabled>
+                    Finalizar atendimento →
                 </button>
-
-                <p class="finalize-caption">Seu comprovante será gerado ao finalizar.</p>
+                <p class="fine-print">Seu comprovante será gerado ao finalizar.</p>
 
             </aside>
 
@@ -233,31 +192,32 @@
     </main>
 
     <!-- MODAL DO COMPROVANTE -->
-    <div id="modal-comprovante" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="recibo-titulo">
-        <div class="receipt-modal">
-            <button id="btn-fechar-modal" class="modal-close" type="button" aria-label="Fechar comprovante">×</button>
+    <div id="modal-comprovante" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="receipt-card">
+            <button id="btn-fechar-modal" class="modal-close" type="button" aria-label="Fechar">×</button>
 
-            <div class="receipt-success">✓</div>
-            <span class="eyebrow receipt-eyebrow">ATENDIMENTO REGISTRADO NESTA SESSÃO</span>
-            <h2 id="recibo-titulo">A sua próxima leitura começa agora.</h2>
-            <p class="receipt-subtitle">Guarde os dados do atendimento para consultar o seu resumo.</p>
+            <span class="eyebrow">ATENDIMENTO REGISTRADO</span>
+            <h2>Comprovante de Empréstimo</h2>
+            <p class="receipt-intro">Guarde os dados abaixo para a devolução do seu livro.</p>
 
-            <div class="receipt-info">
-                <div><span>Número da sessão</span><strong id="recibo-id">—</strong></div>
-                <div><span>Data e hora</span><strong id="recibo-data">—</strong></div>
-                <div><span>Total de volumes</span><strong id="recibo-qtd">0</strong></div>
+            <div class="receipt-meta">
+                <div><small>Número da sessão</small><strong id="recibo-id">—</strong></div>
+                <div><small>Data e hora</small><strong id="recibo-data">—</strong></div>
+                <div><small>Total de volumes</small><strong id="recibo-qtd">0</strong></div>
             </div>
 
-            <h3 class="receipt-list-title">Livros desta sessão</h3>
-            <ul id="recibo-livros" class="receipt-book-list"></ul>
+            <h3>Livros desta sessão:</h3>
+            <ul id="recibo-livros" class="receipt-list"></ul>
 
-            <div class="qr-section">
+            <div class="qr-area">
                 <div id="qrcode-container"></div>
-                <p>Leia o QR Code para guardar os dados do comprovante.</p>
+                <p>Digitalize para salvar no seu celular</p>
             </div>
 
-            <button id="btn-imprimir" class="btn btn-outline" type="button">Imprimir comprovante</button>
-            <button id="btn-nova-sessao" class="btn btn-primary btn-new-session" type="button">Iniciar nova sessão</button>
+            <div class="receipt-actions">
+                <button id="btn-imprimir" class="button button-secondary" type="button">Imprimir</button>
+                <button id="btn-nova-sessao" class="button button-primary" type="button">Nova sessão</button>
+            </div>
         </div>
     </div>
 
