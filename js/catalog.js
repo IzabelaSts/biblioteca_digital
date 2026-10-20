@@ -1,5 +1,5 @@
 const CATALOGO_LIVROS = {
-  ventos: {
+  "ventos_uivantes": {
     titulo: "O Morro dos Ventos Uivantes",
     autor: "Emily Brontë",
     area: "LITERATURA",
@@ -9,7 +9,7 @@ const CATALOGO_LIVROS = {
     restricao: false,
     imagem: "img/ventos.jpg" // <--- Adicione o caminho aqui
   },
-  principe: {
+  "pequeno_principe": {
     titulo: "O Pequeno Príncipe",
     autor: "Antoine de Saint-Exupéry",
     area: "LITERATURA",
@@ -19,7 +19,7 @@ const CATALOGO_LIVROS = {
     restricao: false,
     imagem: "img/principe.jpg" // <--- Adicione o caminho aqui
   },
-  julieta: {
+  "romeu_julieta": {
     titulo: "Romeu e Julieta",
     autor: "William Shakespeare",
     area: "LITERATURA",
@@ -29,7 +29,7 @@ const CATALOGO_LIVROS = {
     restricao: false,
     imagem: "img/julieta.webp" // <--- Adicione o caminho aqui
   },
-  morte: {
+  "intermitencias_morte": {
     titulo: "As Intermitências da Morte",
     autor: "José Saramago",
     area: "LITERATURA",
