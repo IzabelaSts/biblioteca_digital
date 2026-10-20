@@ -1,225 +1,39 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Biblioteca Digital: reconhecimento de livros e atendimento automatizado.">
-    <title>Biblioteca Digital | Atendimento Inteligente</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-
-    <!-- TensorFlow.js & Teachable Machine & QRCode -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-    <!-- Scripts da Aplicação -->
-    <script src="js/catalog.js" defer></script>
-    <script src="js/app.js" defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Início — Biblioteca Digital</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
-    <!-- CABEÇALHO -->
-    <header class="header">
-        <a href="index.html" class="brand">
-            <span class="brand-mark">📚</span>
-            <span>
-                <strong>Biblioteca Digital</strong>
-                <small>Um mundo de histórias</small>
-            </span>
-        </a>
+<header class="topbar">
+  <a class="brand" href="index.html">📚 Biblioteca Digital</a>
+  <nav class="nav">
+    <a href="index.html" class="ativo">Início</a>
+    <a href="atendimento.html">Atendimento</a>
+    <a href="catalogo.html">Catálogo</a>
+  </nav>
+</header>
+<main>
+  <section class="hero">
+    <h1 id="saudacao">Bem-vindo à Biblioteca Digital</h1>
+    <p>Aproxime a capa de um livro da câmera e o terminal reconhece o título, mostra a sinopse, valida o prazo de devolução e registra o empréstimo.</p>
+    <div class="btns"><a class="btn" href="atendimento.html">Iniciar atendimento</a></div>
+  </section>
 
-        <div class="header-info">
-            <div class="clock">
-                <span id="relogio">--:--</span>
-                <span id="data-atual">A carregar...</span>
-            </div>
+  <h2>Explore por área do conhecimento</h2>
+  <div id="areas-grid" class="grid" style="margin:12px 0 28px"></div>
 
-            <div class="system-status">
-                <span class="status-dot"></span>
-                <span id="estado-sistema">A preparar sistema</span>
-            </div>
-        </div>
-
-        <nav class="header-nav">
-            <a href="index.html" class="nav-link active">Atendimento</a>
-            <a href="catalogo.html" class="nav-link">Catálogo</a>
-        </nav>
-    </header>
-
-    <main class="page-container">
-
-        <!-- APRESENTAÇÃO -->
-        <section class="hero">
-            <div class="hero-content">
-                <span class="eyebrow">SUA BIBLIOTECA, SEM ESPERAS</span>
-                <h1>Uma história<br>espera por si.</h1>
-                <p>Descubra o seu próximo livro. Aproxime a capa da câmera, confirme os dados e leve a sua próxima leitura consigo.</p>
-                <div class="hero-actions">
-                    <a href="catalogo.html" class="button button-secondary">Ver Catálogo Completo</a>
-                </div>
-            </div>
-
-            <div class="hero-decoration" aria-hidden="true">
-                <div class="decor-book book-one"></div>
-                <div class="decor-book book-two"></div>
-                <div class="decor-book book-three"></div>
-            </div>
-        </section>
-
-        <!-- CONTEÚDO PRINCIPAL -->
-        <section class="main-grid">
-
-            <!-- COLUNA ESQUERDA -->
-            <div class="left-column">
-
-                <!-- CÂMERA -->
-                <section class="card camera-card">
-                    <div class="section-heading">
-                        <div>
-                            <span class="eyebrow">PARA DESCOBRIR</span>
-                            <h2>Reconhecimento inteligente</h2>
-                            <p>Identifique o livro através da sua capa.</p>
-                        </div>
-                        <span class="status-badge status-waiting" id="ai-status">A iniciar</span>
-                    </div>
-
-                    <div class="webcam-container" id="webcam-container">
-                        <div id="camera-placeholder" class="camera-placeholder">
-                            <div class="camera-icon">📷</div>
-                            <strong>Câmera pronta para começar</strong>
-                            <p>Ative a câmera e aproxime a capa de um livro.</p>
-                        </div>
-                        <div class="scan-indicator">
-                            <span></span><span></span><span></span><span></span>
-                        </div>
-                    </div>
-
-                    <p class="scanner-caption" id="texto-scanner">Aguardando ativação da câmera</p>
-
-                    <div class="camera-actions">
-                        <button id="btn-camera" class="button button-primary button-wide" type="button">
-                            Ativar câmera
-                        </button>
-                        <p id="status-leitura" class="status-message" aria-live="polite">A câmera está pronta para iniciar.</p>
-                    </div>
-                </section>
-
-                <!-- DETALHES DO LIVRO -->
-                <section id="card-livro" class="card book-details hidden">
-                    <div id="livro-capa" class="book-cover">📖</div>
-                    <div class="book-copy">
-                        <span id="livro-area" class="book-area">Literatura</span>
-                        <h3 id="livro-titulo">Título do livro</h3>
-                        <p class="book-author"><strong>Autor:</strong> <span id="livro-autor">Nome do autor</span></p>
-                        <span id="livro-categoria" class="category-pill">Categoria</span>
-                        <p id="livro-sinopse" class="book-synopsis">A sinopse do livro aparecerá aqui.</p>
-                        <div id="livro-status" class="loan-status" aria-live="polite">
-                            Aguardando identificação do livro.
-                        </div>
-                    </div>
-                </section>
-
-            </div>
-
-            <!-- COLUNA DIREITA -->
-            <aside class="right-column">
-
-                <!-- CONTADOR -->
-                <section class="card counter-card">
-                    <div class="section-heading">
-                        <div>
-                            <span class="eyebrow">SUA SELEÇÃO</span>
-                            <h2>Volumes retirados</h2>
-                        </div>
-                        <div class="counter">
-                            <strong id="contador-volumes">0</strong>
-                            <small>/ 10</small>
-                        </div>
-                    </div>
-
-                    <div class="progress-track">
-                        <div id="progresso-sessao" class="progress-bar"></div>
-                    </div>
-
-                    <p id="texto-contador" class="muted">Ainda não selecionou nenhum livro.</p>
-                </section>
-
-                <!-- HISTÓRICO -->
-                <section class="card history-card">
-                    <div class="history-heading">
-                        <h3>Minha estante</h3>
-                        <span id="total-historico">0 livros</span>
-                    </div>
-
-                    <ul id="lista-historico" class="history-list">
-                        <li class="history-empty">
-                            <span class="empty-book">📚</span>
-                            <strong>A sua estante está à espera</strong>
-                            <p>Os livros reconhecidos aparecerão aqui.</p>
-                        </li>
-                    </ul>
-                </section>
-
-                <!-- REGRAS -->
-                <section class="help-card">
-                    <span class="help-icon">✦</span>
-                    <div>
-                        <strong>Leitura sem complicações</strong>
-                        <p>Confira os dados de cada livro antes de finalizar seu atendimento.</p>
-                    </div>
-                </section>
-
-                <!-- FINALIZAÇÃO -->
-                <button id="btn-finalizar" class="button button-primary button-wide" type="button" disabled>
-                    Finalizar atendimento →
-                </button>
-                <p class="fine-print">Seu comprovante será gerado ao finalizar.</p>
-
-            </aside>
-
-        </section>
-
-        <!-- RODAPÉ -->
-        <footer class="footer">
-            <span>📚 Biblioteca Digital</span>
-            <span>Uma nova história começa a cada leitura.</span>
-        </footer>
-
-    </main>
-
-    <!-- MODAL DO COMPROVANTE -->
-    <div id="modal-comprovante" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="receipt-card">
-            <button id="btn-fechar-modal" class="modal-close" type="button" aria-label="Fechar">×</button>
-
-            <span class="eyebrow">ATENDIMENTO REGISTRADO</span>
-            <h2>Comprovante de Empréstimo</h2>
-            <p class="receipt-intro">Guarde os dados abaixo para a devolução do seu livro.</p>
-
-            <div class="receipt-meta">
-                <div><small>Número da sessão</small><strong id="recibo-id">—</strong></div>
-                <div><small>Data e hora</small><strong id="recibo-data">—</strong></div>
-                <div><small>Total de volumes</small><strong id="recibo-qtd">0</strong></div>
-            </div>
-
-            <h3>Livros desta sessão:</h3>
-            <ul id="recibo-livros" class="receipt-list"></ul>
-
-            <div class="qr-area">
-                <div id="qrcode-container"></div>
-                <p>Digitalize para salvar no seu celular</p>
-            </div>
-
-            <div class="receipt-actions">
-                <button id="btn-imprimir" class="button button-secondary" type="button">Imprimir</button>
-                <button id="btn-nova-sessao" class="button button-primary" type="button">Nova sessão</button>
-            </div>
-        </div>
-    </div>
-
+  <h2>Como funciona</h2>
+  <div class="grid" style="margin-top:12px">
+    <div class="card passo"><b>1</b><h3>Ative a câmera</h3><p class="mut">Permita o acesso quando o navegador pedir.</p></div>
+    <div class="card passo"><b>2</b><h3>Mostre a capa</h3><p class="mut">A IA identifica o livro e exibe os detalhes.</p></div>
+    <div class="card passo"><b>3</b><h3>Empréstimo automático</h3><p class="mut">O título entra na lista com a data de devolução.</p></div>
+    <div class="card passo"><b>4</b><h3>Finalize</h3><p class="mut">Receba o comprovante digital com QR code.</p></div>
+  </div>
+</main>
+<script src="js/catalog.js"></script>
+<script src="js/catalogo-pag.js"></script>
 </body>
 </html>

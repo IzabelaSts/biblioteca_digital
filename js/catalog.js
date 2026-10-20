@@ -1,6 +1,7 @@
 /*
  * Catálogo central de livros.
- * As chaves devem bater EXATAMENTE com as classes criadas no Teachable Machine.
+ * IMPORTANTE: As chaves (ex: "pequeno_principe", "ventos_uivantes") DEVEM ser idênticas
+ * aos nomes das classes criadas no seu modelo do Teachable Machine.
  */
 const CATALOGO_LIVROS = {
   "ventos_uivantes": {
