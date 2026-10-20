@@ -1,4 +1,14 @@
 const CATALOGO_LIVROS = {
+  "intermitencia_morte": {
+    titulo: "As Intermitências da Morte",
+    autor: "José Saramago",
+    area: "LITERATURA",
+    categoria: "FICÇÃO FILOSÓFICA",
+    sinopse: "Num país não identificado, a morte decide suspender suas atividades...",
+    prazoDias: 14,
+    restricao: false,
+    imagem: "img/morte.jpg"
+  },
   "ventos_uivantes": {
     titulo: "O Morro dos Ventos Uivantes",
     autor: "Emily Brontë",
@@ -7,17 +17,7 @@ const CATALOGO_LIVROS = {
     sinopse: "Uma história intensa de amor, ressentimento e vingança.",
     prazoDias: 14,
     restricao: false,
-    imagem: "img/ventos.jpg" // <--- Adicione o caminho aqui
-  },
-  "pequeno_principe": {
-    titulo: "O Pequeno Príncipe",
-    autor: "Antoine de Saint-Exupéry",
-    area: "LITERATURA",
-    categoria: "FÁBULA",
-    sinopse: "Uma viagem poética sobre amizade, amor e o que realmente importa.",
-    prazoDias: 14,
-    restricao: false,
-    imagem: "img/principe.jpg" // <--- Adicione o caminho aqui
+    imagem: "img/ventos.jpg"
   },
   "romeu_julieta": {
     titulo: "Romeu e Julieta",
@@ -27,16 +27,16 @@ const CATALOGO_LIVROS = {
     sinopse: "Dois jovens apaixonados enfrentam o conflito entre suas famílias.",
     prazoDias: 7,
     restricao: false,
-    imagem: "img/julieta.webp" // <--- Adicione o caminho aqui
+    imagem: "img/julieta.webp"
   },
-  "intermitencia_morte": {
-    titulo: "As Intermitências da Morte",
-    autor: "José Saramago",
+  "pequeno_principe": {
+    titulo: "O Pequeno Príncipe",
+    autor: "Antoine de Saint-Exupéry",
     area: "LITERATURA",
-    categoria: "FICÇÃO FILOSÓFICA",
-    sinopse: "Num país não identificado, a morte decide suspender suas atividades...",
+    categoria: "FÁBULA",
+    sinopse: "Uma viagem poética sobre amizade, amor e o que realmente importa.",
     prazoDias: 14,
     restricao: false,
-    imagem: "img/morte.jpg" // <--- Adicione o caminho aqui
+    imagem: "img/principe.jpg"
   }
 };
