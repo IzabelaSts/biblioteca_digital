@@ -8,19 +8,19 @@
 // Link do modelo exportado do Teachable Machine
 const URL_MODELO = "https://teachablemachine.withgoogle.com/models/8_uI-T1lu/";
 
-// Confiança mínima para aceitar um livro (0.75 = 75%)
-const LIMIAR_RECONHECIMENTO = 0.75;
+// Confiança mínima para aceitar um livro (0.85 = 85% de certeza para evitar falsos positivos)
+const LIMIAR_RECONHECIMENTO = 0.85;
 
-// Quantos quadros seguidos o MESMO livro precisa aparecer
-const QUADROS_PARA_CONFIRMAR = 3;
+// Quantos quadros seguidos o MESMO livro precisa aparecer (4 quadros para maior precisão)
+const QUADROS_PARA_CONFIRMAR = 4;
 
-// Nome da classe "sem livro" criada no Teachable Machine
+// Nome da classe "sem livro" criada no Teachable Machine (ajuste se usou outro nome)
 const CLASSE_FUNDO = "Fundo";
 
 // Espelhar a imagem da webcam
 const ESPELHAR_IMAGEM = false;
 
-// Modo de depuração
+// Modo de depuração (ponha true para ver todas as probabilidades no ecra)
 const MODO_DEPURACAO = false;
 
 const LIMITE_VOLUMES = 10;
@@ -161,24 +161,19 @@ async function iniciarReconhecimento() {
   definirEstadoIA("aguardar", "Carregando");
 
   try {
-    // 1. Limpa completamente qualquer instância anterior antes de tentar reiniciar
     if (webcam) {
       try { await webcam.stop(); } catch (e) {}
       webcam = null;
     }
 
-    // 2. Carrega o modelo de IA
     await carregarModelo();
 
-    // 3. Instancia a Webcam
     const flip = ESPELHAR_IMAGEM;
     webcam = new tmImage.Webcam(400, 300, flip);
 
-    // Solicita o acesso à câmera
     await webcam.setup({ facingMode: "environment" });
     await webcam.play();
 
-    // 4. Insere no DOM
     const container = $("webcam-container");
     if (container) {
       const placeholder = $("camera-placeholder");
@@ -204,8 +199,6 @@ async function iniciarReconhecimento() {
 
   } catch (error) {
     console.error("Erro ao iniciar a câmera/modelo:", error);
-    
-    // Se houver erro, garante a limpeza do hardware da câmera
     pararCamera();
     
     definirEstadoSistema("erro", "Erro de câmera");
@@ -242,7 +235,7 @@ function reiniciarConfirmacao() {
 async function loopReconhecimento() {
   if (!cameraAtiva || !webcam || !model) return;
 
-  webcam.update(); // Atualiza os quadros da webcam
+  webcam.update();
   await preverLivro();
 
   if (cameraAtiva) {
@@ -265,7 +258,7 @@ async function preverLivro() {
       : `Lendo: '${idLivro}' (${porcentagem}%).`;
   }
 
-  // Sem livro ou confiança baixa
+  // Se for a classe de fundo OU se a confiança for inferior a 85% (0.85)
   if (idLivro === CLASSE_FUNDO || melhor.probability < LIMIAR_RECONHECIMENTO) {
     reiniciarConfirmacao();
     ultimoLivroLido = null;
@@ -273,7 +266,7 @@ async function preverLivro() {
     return;
   }
 
-  // Validação por quadros consecutivos
+  // Confirmação por quadros consecutivos
   if (idLivro === candidato) {
     contagemCandidato++;
   } else {
@@ -288,7 +281,7 @@ async function preverLivro() {
 
   if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido!";
 
-  // Evita reprocessar o mesmo livro enquanto mantido na câmera
+  // Impede reprocessamento do mesmo livro enquanto mantido em frente à câmara
   if (idLivro === ultimoLivroLido) {
     if ($("texto-scanner")) $("texto-scanner").textContent = "Livro já lido — mostre o próximo livro";
     return;
