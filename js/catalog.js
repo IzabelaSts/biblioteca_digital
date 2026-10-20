@@ -29,7 +29,7 @@ const CATALOGO_LIVROS = {
     restricao: false,
     imagem: "img/julieta.webp" // <--- Adicione o caminho aqui
   },
-  "intermitencias_morte": {
+  "intermitencia_morte": {
     titulo: "As Intermitências da Morte",
     autor: "José Saramago",
     area: "LITERATURA",
