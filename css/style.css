@@ -95,7 +95,15 @@ section.bloco{margin:34px 0}
 .bar{height:5px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0 6px}
 #progresso-sessao{height:100%;width:0;background:var(--gold);transition:width .4s}
 .history{list-style:none;margin:12px 0 16px;padding:0;display:grid;gap:8px;max-height:340px;overflow-y:auto}
+
+/* Ajuste do item do histórico e botão de exclusão */
 .history-item{display:flex;gap:12px;align-items:center;padding:10px;background:#fff;border:1px solid var(--line);border-radius:4px}
+.history-item button,
+.history-item .btn-remove {
+  margin-left: auto; /* Empurra o botão X para a extremidade direita */
+  flex-shrink: 0;
+}
+
 .history-book-icon{flex:none;width:36px;height:50px;display:grid;place-items:center;font-size:1.2rem;background:linear-gradient(135deg,var(--plum),var(--plum2));border-radius:2px 5px 5px 2px}
 .history-book-copy{display:grid;font-size:.88rem}
 .history-book-copy small{color:var(--mut)}
@@ -111,7 +119,7 @@ section.bloco{margin:34px 0}
 
 /* comprovante */
 .modal{position:fixed;inset:0;background:rgba(42,29,34,.65);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
-.modal-conteudo{background:var(--paper);border-radius:6px;padding:28px;width:min(100%,440px);max-height:92vh;overflow-y:auto;border-top:6px solid var(--gold)}
+.modal-conteudo{position:relative;background:var(--paper);border-radius:6px;padding:28px;width:min(100%,440px);max-height:92vh;overflow-y:auto;border-top:6px solid var(--gold)}
 #recibo-livros{padding-left:18px;font-size:.9rem}
 #qrcode-container{display:flex;justify-content:center;margin:16px 0}
 @media print{body *{visibility:hidden}.modal-conteudo,.modal-conteudo *{visibility:visible}.modal-conteudo{position:absolute;inset:0;width:100%}.btns{display:none!important}}
@@ -160,6 +168,7 @@ main>.kicker,main>h1,main>.mut,.welcome{text-align:center}
 
 /* Card central com o tom creme do tema */
 .welcome-card {
+  position: relative;
   background-color: #fcf9f2;
   border: 1px solid #e8dfd1;
   border-radius: 20px;
@@ -168,6 +177,26 @@ main>.kicker,main>h1,main>.mut,.welcome{text-align:center}
   width: 90%;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   animation: modalFadeIn 0.3s ease-out;
+}
+
+/* Botão de Fechar Modal */
+.close-btn {
+  position: absolute;
+  top: 20px;
+  right: 32px;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #7a6358;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.close-btn:hover {
+  color: #2b121d;
+  transform: scale(1.1);
 }
 
 @keyframes modalFadeIn {
