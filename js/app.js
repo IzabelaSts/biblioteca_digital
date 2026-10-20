@@ -69,8 +69,12 @@ function iniciarAplicacao() {
   $("btn-voltar-revisao")?.addEventListener("click", fecharRevisaoModal);
   $("btn-confirmar-emprestimo")?.addEventListener("click", emitirComprovanteFinal);
 
-  // Escutadores do comprovante final
-  $("btn-fechar-modal")?.addEventListener("click", fecharModal);
+  // Escutadores do comprovante final (atribuição direta para evitar falhas de clique)
+  const btnFecharModal = $("btn-fechar-modal");
+  if (btnFecharModal) {
+    btnFecharModal.onclick = fecharModal;
+  }
+
   $("btn-nova-sessao")?.addEventListener("click", fecharModal);
   $("btn-imprimir")?.addEventListener("click", imprimirComprovante);
 }
@@ -294,7 +298,7 @@ async function preverLivro() {
     reiniciarConfirmacao();
     contagemErro++;
 
-    // Só altera o cartão para erro se a falha persisti por vários quadros seguidos
+    // Só altera o cartão para erro se a falha persistir por vários quadros seguidos
     if (contagemErro >= QUADROS_PARA_ERRO) {
       if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
       mostrarErroLivro("Esta capa não pertence a nenhum livro cadastrado no catálogo.");
@@ -689,24 +693,35 @@ function finalizarAtendimento() {
     });
   }
 
-  const qrContainer = $("qrcode-container");
-  if (qrContainer) {
-    qrContainer.replaceChildren();
-    if (window.QRCode) {
-      try {
-        new QRCode(qrContainer, {
-          text: `Sessão: ${sessaoID}\nLivros: ${historicoSessao.length}`,
-          width: 130,
-          height: 130
-        });
-      } catch (erro) {
-        console.error("Não foi possível gerar o QR code:", erro);
-      }
-    }
-  }
-
+  // Abre primeiro o modal para o elemento ter dimensões no DOM
   $("modal-comprovante")?.classList.remove("hidden");
   atualizarInterfaceSessao();
+
+  // Desenha o QR Code com delay seguro
+  setTimeout(() => {
+    const qrContainer = $("qrcode-container");
+    if (qrContainer) {
+      qrContainer.replaceChildren();
+      if (typeof QRCode !== "undefined") {
+        try {
+          new QRCode(qrContainer, {
+            text: `Sessao: ${sessaoID}\nQuantidade: ${historicoSessao.length}`,
+            width: 128,
+            height: 128,
+            colorDark: "#2a1d22",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        } catch (erro) {
+          console.error("Erro ao gerar QR Code:", erro);
+          qrContainer.textContent = "Erro ao carregar QR Code.";
+        }
+      } else {
+        console.warn("Biblioteca QRCode não está carregada no HTML.");
+        qrContainer.textContent = "Biblioteca QR Code indisponível.";
+      }
+    }
+  }, 50);
 }
 
 function imprimirComprovante() {
@@ -728,7 +743,6 @@ function fecharModal() {
   mostrarBoasVindas();
 
   if ($("btn-camera")) $("btn-camera").disabled = false;
-  iniciarReconhecimento();
 }
 
 /* ------------------------------ PARAR CÂMERA ------------------------------ */
