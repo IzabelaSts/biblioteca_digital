@@ -5,36 +5,31 @@
 
 /* ------------------------------ CONFIGURAÇÃO ------------------------------ */
 
-// Link do modelo exportado do Teachable Machine (atualize a cada novo treino)
+// Link do modelo exportado do Teachable Machine
 const URL_MODELO = "https://teachablemachine.withgoogle.com/models/8_uI-T1lu/";
 
 // Confiança mínima para aceitar um livro (0.75 = 75%)
 const LIMIAR_RECONHECIMENTO = 0.75;
 
-// Quantos quadros seguidos o MESMO livro precisa aparecer (evita leituras falsas)
+// Quantos quadros seguidos o MESMO livro precisa aparecer
 const QUADROS_PARA_CONFIRMAR = 3;
 
-// Nome da classe "sem livro" criada no Teachable Machine (mesa vazia, mão, ambiente).
-// Se não existir essa classe, não há problema.
+// Nome da classe "sem livro" criada no Teachable Machine
 const CLASSE_FUNDO = "Fundo";
 
-// Espelhar o quadro antes de prever.
-// true  -> modelo treinado pela WEBCAM do Teachable Machine (ele espelha as amostras)
-// false -> modelo treinado com fotos enviadas como arquivo
+// Espelhar a imagem da webcam
 const ESPELHAR_IMAGEM = false;
 
-// Mostra as 3 melhores previsões na tela (útil para testar; ponha false na apresentação)
+// Modo de depuração
 const MODO_DEPURACAO = false;
 
 const LIMITE_VOLUMES = 10;
-const INTERVALO_PREDICAO_MS = 150;
 const TEMPO_LIMITE_MODELO_MS = 30000;
 
 /* --------------------------------- ESTADO --------------------------------- */
 
 let model = null;
-let videoElement = null;
-let streamAtual = null;
+let webcam = null;
 let placeholderOriginal = null;
 let cameraAtiva = false;
 let cameraEmInicializacao = false;
@@ -42,10 +37,9 @@ let atendimentoFinalizado = false;
 let ultimoLivroLido = null;
 let historicoSessao = [];
 let temporizadorRelogio = null;
-let temporizadorCiclo = null;
+let animFrameID = null;
 let sessaoID = null;
 let candidato = null;
-let cicloId = 0; // identifica o laço ativo (evita dois laços ao reativar a câmera)
 let contagemCandidato = 0;
 
 const $ = (id) => document.getElementById(id);
@@ -86,9 +80,18 @@ function saudacao() {
 }
 
 function mostrarBoasVindas() {
-  const mensagem = `${saudacao()}! Bem-vindo à Biblioteca Digital. Ative a câmera e aproxime a capa de um livro.`;
-  if ($("status-leitura")) $("status-leitura").textContent = mensagem;
-  if ($("mensagem-boas-vindas")) $("mensagem-boas-vindas").textContent = mensagem;
+  const nome = localStorage.getItem('usuario_nome');
+  const cumprimento = saudacao();
+
+  if ($("mensagem-boas-vindas")) {
+    $("mensagem-boas-vindas").textContent = nome
+      ? `${cumprimento}, ${nome}! Bem-vindo à Biblioteca Digital.`
+      : `${cumprimento}! Bem-vindo à Biblioteca Digital.`;
+  }
+
+  if ($("status-leitura")) {
+    $("status-leitura").textContent = "Ative a câmera e aproxime a capa de um livro.";
+  }
 }
 
 /* ------------------------------ INDICADORES ------------------------------- */
@@ -121,30 +124,10 @@ function configurarBotaoCamera() {
       pararCamera();
       return;
     }
-    // Recuperação: se o comprovante não está aberto, nenhum atendimento está "finalizado"
     const modalAberto = !$("modal-comprovante")?.classList.contains("hidden");
     if (!modalAberto) atendimentoFinalizado = false;
-    cameraEmInicializacao = false; // o botão fica desativado durante a inicialização, então é seguro
     await iniciarReconhecimento();
   });
-}
-
-// Tenta a câmera traseira (celular); se não houver (notebook), usa qualquer câmera.
-async function obterStreamCamera() {
-  const tentativas = [
-    { video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
-    { video: true, audio: false }
-  ];
-  let ultimoErro = null;
-  for (const constraints of tentativas) {
-    try {
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (erro) {
-      ultimoErro = erro;
-      if (erro?.name === "NotAllowedError" || erro?.name === "PermissionDeniedError") break;
-    }
-  }
-  throw ultimoErro;
 }
 
 async function carregarModelo() {
@@ -158,7 +141,7 @@ async function carregarModelo() {
   const carregamento = tmImage.load(urlFinal + "model.json", urlFinal + "metadata.json");
   const limite = new Promise((_, rejeitar) =>
     setTimeout(
-      () => rejeitar(new Error("Tempo esgotado ao carregar o modelo. Verifique a internet e se o modelo é público.")),
+      () => rejeitar(new Error("Tempo esgotado ao carregar o modelo. Verifique a internet e o link do modelo.")),
       TEMPO_LIMITE_MODELO_MS
     )
   );
@@ -170,8 +153,6 @@ async function carregarModelo() {
 async function iniciarReconhecimento() {
   if (cameraEmInicializacao || cameraAtiva || atendimentoFinalizado) return;
   cameraEmInicializacao = true;
-  cicloId++;
-  liberarStream(); // garante que não sobrou stream antigo
 
   if ($("btn-camera")) $("btn-camera").disabled = true;
   if ($("status-leitura")) $("status-leitura").textContent = "Solicitando acesso à câmera...";
@@ -180,38 +161,30 @@ async function iniciarReconhecimento() {
   definirEstadoIA("aguardar", "Carregando");
 
   try {
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error("A câmera só funciona em HTTPS ou em localhost. Abra a página por https:// ou http://localhost.");
+    // 1. Limpa completamente qualquer instância anterior antes de tentar reiniciar
+    if (webcam) {
+      try { await webcam.stop(); } catch (e) {}
+      webcam = null;
     }
 
-    // 1) Câmera primeiro
-    streamAtual = await obterStreamCamera();
+    // 2. Carrega o modelo de IA
+    await carregarModelo();
 
-    videoElement = document.createElement("video");
-    videoElement.srcObject = streamAtual;
-    videoElement.muted = true;
-    videoElement.playsInline = true;
-    videoElement.autoplay = true;
-    videoElement.setAttribute("playsinline", "");
-    videoElement.setAttribute("muted", "");
-    videoElement.style.width = "100%";
-    videoElement.style.height = "100%";
-    videoElement.style.objectFit = "cover";
+    // 3. Instancia a Webcam
+    const flip = ESPELHAR_IMAGEM;
+    webcam = new tmImage.Webcam(400, 300, flip);
 
+    // Solicita o acesso (com timeout de captura tratando AbortError)
+    await webcam.setup({ facingMode: "environment" });
+    await webcam.play();
+
+    // 4. Insere no DOM
     const container = $("webcam-container");
     if (container) {
       const placeholder = $("camera-placeholder");
       if (placeholder) placeholderOriginal = placeholder;
-      container.replaceChildren(videoElement);
+      container.replaceChildren(webcam.canvas);
     }
-
-    await videoElement.play();
-
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Câmera ativa — carregando IA...";
-    if ($("status-leitura")) $("status-leitura").textContent = "Carregando modelo da IA...";
-
-    // 2) Modelo depois
-    await carregarModelo();
 
     cameraAtiva = true;
     reiniciarConfirmacao();
@@ -227,40 +200,35 @@ async function iniciarReconhecimento() {
     definirEstadoSistema("ativo", "Sistema ativo");
     definirEstadoIA("pronto", "IA Pronta");
 
-    agendarProximoCiclo();
+    animFrameID = window.requestAnimationFrame(loopReconhecimento);
+
   } catch (error) {
-    console.error("Erro detalhado ao iniciar a câmera:", error);
-    liberarStream();
-    cameraAtiva = false;
+    console.error("Erro ao iniciar a câmera/modelo:", error);
+    
+    // Se o erro for AbortError, limpa o estado interno para permitir um novo clique direto
+    pararCamera();
+    
     definirEstadoSistema("erro", "Erro de câmera");
     definirEstadoIA("erro", "Erro");
     if ($("status-leitura")) $("status-leitura").textContent = traduzirErroCamera(error);
     if ($("texto-scanner")) $("texto-scanner").textContent = "Não foi possível iniciar o reconhecimento.";
-    if ($("btn-camera")) $("btn-camera").textContent = "Ativar câmera";
   } finally {
     cameraEmInicializacao = false;
     if ($("btn-camera")) $("btn-camera").disabled = atendimentoFinalizado;
   }
 }
-
 function traduzirErroCamera(error) {
   const nome = error?.name;
   if (nome === "NotAllowedError" || nome === "PermissionDeniedError") {
-    return "Permissão negada! Permita o acesso à câmera nas definições do navegador (ícone do cadeado).";
+    return "Permissão negada! Permita o acesso à câmera nas configurações do navegador.";
   }
-  if (nome === "NotFoundError" || nome === "DevicesNotFoundError") return "Nenhuma câmera encontrada no dispositivo.";
+  if (nome === "NotFoundError" || nome === "DevicesNotFoundError") {
+    return "Nenhuma câmera encontrada no dispositivo.";
+  }
   if (nome === "NotReadableError" || nome === "TrackStartError") {
-    return "A câmera está em uso por outro programa (Zoom, Teams, outra aba...). Feche-o e tente de novo.";
+    return "A câmera está em uso por outro aplicativo. Feche-o e tente novamente.";
   }
   return error?.message || "Erro ao conectar com a câmera.";
-}
-
-function liberarStream() {
-  try {
-    streamAtual?.getTracks().forEach((track) => track.stop());
-  } catch (e) { /* ignora */ }
-  streamAtual = null;
-  videoElement = null;
 }
 
 /* ----------------------------- RECONHECIMENTO ----------------------------- */
@@ -270,29 +238,19 @@ function reiniciarConfirmacao() {
   contagemCandidato = 0;
 }
 
-function agendarProximoCiclo() {
-  clearTimeout(temporizadorCiclo);
-  if (!cameraAtiva) return;
-  const id = cicloId;
-  temporizadorCiclo = setTimeout(() => cicloReconhecimento(id), INTERVALO_PREDICAO_MS);
-}
+async function loopReconhecimento() {
+  if (!cameraAtiva || !webcam || !model) return;
 
-async function cicloReconhecimento(id) {
-  if (id !== cicloId || !cameraAtiva || !videoElement || !model) return;
+  webcam.update(); // Atualiza os quadros da webcam
+  await preverLivro();
 
-  try {
-    if (videoElement.readyState >= 2 && videoElement.videoWidth > 0) {
-      await preverLivro();
-    }
-  } catch (error) {
-    console.error("Erro no ciclo de reconhecimento:", error);
+  if (cameraAtiva) {
+    animFrameID = window.requestAnimationFrame(loopReconhecimento);
   }
-
-  if (id === cicloId) agendarProximoCiclo();
 }
 
 async function preverLivro() {
-  const previsoes = await model.predict(videoElement, ESPELHAR_IMAGEM);
+  const previsoes = await model.predict(webcam.canvas);
   if (!previsoes?.length || !cameraAtiva) return;
 
   const ordenadas = [...previsoes].sort((a, b) => b.probability - a.probability);
@@ -302,11 +260,11 @@ async function preverLivro() {
 
   if ($("status-leitura")) {
     $("status-leitura").textContent = MODO_DEPURACAO
-      ? ordenadas.slice(0, 3).map((p) => `${p.className} ${Math.round(p.probability * 100)}%`).join("  |  ")
+      ? ordenadas.slice(0, 3).map((p) => `${p.className} (${Math.round(p.probability * 100)}%)`).join(" | ")
       : `Lendo: '${idLivro}' (${porcentagem}%).`;
   }
 
-  // Sem livro à vista (classe de fundo ou confiança baixa)
+  // Sem livro ou confiança baixa
   if (idLivro === CLASSE_FUNDO || melhor.probability < LIMIAR_RECONHECIMENTO) {
     reiniciarConfirmacao();
     ultimoLivroLido = null;
@@ -314,13 +272,14 @@ async function preverLivro() {
     return;
   }
 
-  // Exige o MESMO livro por alguns quadros seguidos
+  // Validação por quadros consecutivos
   if (idLivro === candidato) {
     contagemCandidato++;
   } else {
     candidato = idLivro;
     contagemCandidato = 1;
   }
+
   if (contagemCandidato < QUADROS_PARA_CONFIRMAR) {
     if ($("texto-scanner")) $("texto-scanner").textContent = "Confirmando leitura...";
     return;
@@ -328,7 +287,7 @@ async function preverLivro() {
 
   if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido!";
 
-  // Já processado e ainda está na frente da câmera: não repete
+  // Evita reprocessar o mesmo livro enquanto mantido na câmera
   if (idLivro === ultimoLivroLido) {
     if ($("texto-scanner")) $("texto-scanner").textContent = "Livro já lido — mostre o próximo livro";
     return;
@@ -340,7 +299,6 @@ async function preverLivro() {
 
 /* -------------------------------- CATÁLOGO -------------------------------- */
 
-// Remove acentos, espaços extras e maiúsculas para comparar nomes
 function normalizar(texto) {
   return String(texto ?? "")
     .normalize("NFD")
@@ -354,7 +312,6 @@ function catalogoDisponivel() {
   return typeof CATALOGO_LIVROS !== "undefined" && CATALOGO_LIVROS ? CATALOGO_LIVROS : null;
 }
 
-// Devolve { id, livro } ; aceita pequenas diferenças de acento/maiúscula
 function localizarNoCatalogo(idLivro) {
   const catalogo = catalogoDisponivel();
   if (!catalogo) return null;
@@ -365,7 +322,6 @@ function localizarNoCatalogo(idLivro) {
   return chave ? { id: chave, livro: catalogo[chave] } : null;
 }
 
-// Recomenda até 2 outros livros da mesma área que ainda não foram retirados
 function recomendarMesmaArea(idAtual, livroAtual) {
   const catalogo = catalogoDisponivel();
   if (!catalogo) return [];
@@ -378,7 +334,6 @@ function recomendarMesmaArea(idAtual, livroAtual) {
 
 /* -------------------------------- EMPRÉSTIMO ------------------------------- */
 
-// Registro AUTOMÁTICO: ao reconhecer, valida regras e adiciona ao histórico.
 function processarEmprestimo(idReconhecido) {
   if (atendimentoFinalizado) return;
 
@@ -392,25 +347,21 @@ function processarEmprestimo(idReconhecido) {
   const { id, livro } = encontrado;
   mostrarDetalhesLivro(id, livro);
 
-  // Regra 1: restrição de empréstimo (consulta local)
   if (livro.restricao) {
     definirEstadoEmprestimo(`Consulta local apenas. "${livro.titulo}" indisponível para empréstimo.`, "error");
     return;
   }
 
-  // Regra 2: livro já registado nesta sessão
   if (historicoSessao.some((item) => item.id === id)) {
     definirEstadoEmprestimo("Este livro já foi adicionado à estante nesta sessão.", "success");
     return;
   }
 
-  // Regra 3: limite de volumes por atendimento
   if (historicoSessao.length >= LIMITE_VOLUMES) {
     definirEstadoEmprestimo(`Limite de ${LIMITE_VOLUMES} volumes atingido.`, "error");
     return;
   }
 
-  // Regra 4: calcula o prazo de devolução e registra
   const dataDevolucao = calcularDevolucao(livro.prazoDias);
   historicoSessao.push({
     id,
@@ -426,8 +377,21 @@ function processarEmprestimo(idReconhecido) {
   atualizarHistoricoDOM();
   mostrarRecomendacoes(id, livro);
 
-  // Feedback no telemóvel
   if (navigator.vibrate) navigator.vibrate(200);
+}
+
+function definirCapa(elem, livro) {
+  if (!elem) return;
+  elem.replaceChildren();
+  if (livro.imagem) {
+    const img = document.createElement("img");
+    img.src = livro.imagem;
+    img.alt = `Capa de ${livro.titulo}`;
+    img.onerror = () => elem.replaceChildren(document.createTextNode(livro.capa || "📖"));
+    elem.appendChild(img);
+  } else {
+    elem.textContent = livro.capa || "📖";
+  }
 }
 
 function mostrarDetalhesLivro(id, livro) {
@@ -437,11 +401,10 @@ function mostrarDetalhesLivro(id, livro) {
   if ($("livro-titulo")) $("livro-titulo").textContent = livro.titulo;
   if ($("livro-autor")) $("livro-autor").textContent = livro.autor;
   if ($("livro-sinopse")) $("livro-sinopse").textContent = livro.sinopse;
-  if ($("livro-capa")) $("livro-capa").textContent = livro.capa || "📖";
+  definirCapa($("livro-capa"), livro);
   limparRecomendacoes();
 }
 
-// Cria (se não existir no HTML) a linha de recomendações dentro do card
 function obterElementoRecomendacoes() {
   let el = $("livro-recomendacoes");
   if (!el) {
@@ -511,7 +474,6 @@ function atualizarHistoricoDOM() {
   if (historicoSessao.length === 0) {
     lista.innerHTML = `
       <li class="history-empty">
-        <span class="empty-book">📚</span>
         <strong>A sua estante está à espera</strong>
         <p>Os livros reconhecidos aparecerão aqui.</p>
       </li>
@@ -523,7 +485,7 @@ function atualizarHistoricoDOM() {
 
       const icone = document.createElement("span");
       icone.className = "history-book-icon";
-      icone.textContent = livro.capa || "📖";
+      definirCapa(icone, livro);
 
       const copia = document.createElement("div");
       copia.className = "history-book-copy";
@@ -620,16 +582,23 @@ function fecharModal() {
   mostrarBoasVindas();
 
   if ($("btn-camera")) $("btn-camera").disabled = false;
-  iniciarReconhecimento(); // reabre a câmera automaticamente para o próximo atendimento
+  iniciarReconhecimento();
 }
 
 /* ------------------------------ PARAR CÂMERA ------------------------------ */
 
 function pararCamera() {
   cameraAtiva = false;
-  cicloId++;
-  clearTimeout(temporizadorCiclo);
-  liberarStream();
+
+  if (animFrameID) {
+    window.cancelAnimationFrame(animFrameID);
+    animFrameID = null;
+  }
+
+  if (webcam) {
+    webcam.stop();
+    webcam = null;
+  }
 
   const container = $("webcam-container");
   if (container) {

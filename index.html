@@ -4,36 +4,177 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Início — Biblioteca Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="index.html">📚 Biblioteca Digital</a>
+  <a class="brand" href="index.html">BIBLIOTECA<small>DIGITAL · TERMINAL</small></a>
   <nav class="nav">
     <a href="index.html" class="ativo">Início</a>
     <a href="atendimento.html">Atendimento</a>
     <a href="catalogo.html">Catálogo</a>
   </nav>
+  <!-- Relógio no canto superior -->
+  <div class="clock">
+    <div id="relogio">--:--</div>
+    <div id="data-atual">--</div>
+  </div>
 </header>
+
+<!-- MODAL DE INICIALIZAÇÃO / BOAS-VINDAS -->
+<!-- MODAL DE INICIALIZAÇÃO / BOAS-VINDAS -->
+<div id="modal-boas-vindas" class="modal-overlay">
+  <div class="welcome-card">
+    <div class="welcome-header">
+      <div class="welcome-badge">📚 TERMINAL DIGITAL</div>
+      <h2>Bem-vindo à Biblioteca Digital</h2>
+      <p>Identifique-se para personalizar sua experiência e acompanhar sua lista de leitura.</p>
+    </div>
+
+    <form id="form-inicializacao" onsubmit="salvarUsuarioIndex(event)">
+      <div class="form-group">
+        <label for="nome-usuario">Seu Nome completo</label>
+        <input type="text" id="nome-usuario" placeholder="Ex: Izabela Albuquerque" required class="custom-input">
+      </div>
+
+      <div class="form-group">
+        <label for="meta-leitura">Área de Interesse / Leitura</label>
+        <div class="select-wrapper">
+          <select id="meta-leitura" class="custom-input custom-select" required>
+            <option value="" disabled selected>Selecione uma área...</option>
+            <option value="LITERATURA">Literatura / Romances</option>
+            <option value="TECNOLOGIA">Análise e Dev. de Sistemas</option>
+            <option value="CIENCIAS">Ciências & Pesquisa</option>
+            <option value="GERAL">Geral / Leitura Livre</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary-modal">ACESSAR O TERMINAL →</button>
+    </form>
+  </div>
+</div>
+
 <main>
   <section class="hero">
-    <h1 id="saudacao">Bem-vindo à Biblioteca Digital</h1>
-    <p>Aproxime a capa de um livro da câmera e o terminal reconhece o título, mostra a sinopse, valida o prazo de devolução e registra o empréstimo.</p>
-    <div class="btns"><a class="btn" href="atendimento.html">Iniciar atendimento</a></div>
+    <div>
+      <p class="kicker" id="saudacao">Bem-vindo</p>
+      <h1 id="titulo-hero">Leia algo inesperado.</h1>
+      <p id="descricao-hero">Aproxime a capa de um livro da câmera: o terminal reconhece o título, mostra a sinopse, valida o prazo e registra o seu empréstimo.</p>
+      <div class="btns">
+        <a class="btn claro" href="atendimento.html">Iniciar atendimento</a>
+        <a class="btn sec" style="color:#fff;border-color:#fff" href="catalogo.html">Ver catálogo</a>
+        <button id="btn-trocar-usuario" onclick="trocarUsuarioIndex()" class="btn sec hidden" style="color:#fff;border-color:rgba(255,255,255,0.4)">Trocar leitor</button>
+      </div>
+    </div>
+    <div id="pilha" class="pilha"></div>
   </section>
 
-  <h2>Explore por área do conhecimento</h2>
-  <div id="areas-grid" class="grid" style="margin:12px 0 28px"></div>
+  <section class="bloco">
+    <div class="titulo-sec"><h2>Em destaque</h2><a href="catalogo.html">Ver tudo →</a></div>
+    <div id="destaques" class="grid-livros"></div>
+  </section>
 
-  <h2>Como funciona</h2>
-  <div class="grid" style="margin-top:12px">
-    <div class="card passo"><b>1</b><h3>Ative a câmera</h3><p class="mut">Permita o acesso quando o navegador pedir.</p></div>
-    <div class="card passo"><b>2</b><h3>Mostre a capa</h3><p class="mut">A IA identifica o livro e exibe os detalhes.</p></div>
-    <div class="card passo"><b>3</b><h3>Empréstimo automático</h3><p class="mut">O título entra na lista com a data de devolução.</p></div>
-    <div class="card passo"><b>4</b><h3>Finalize</h3><p class="mut">Receba o comprovante digital com QR code.</p></div>
-  </div>
+  <section class="bloco">
+    <div class="titulo-sec"><h2>Recomendações por área</h2></div>
+    <div id="areas-grid" class="areas"></div>
+  </section>
+
+  <section class="faixa">
+    <h2>Como funciona</h2>
+    <div class="passos">
+      <div class="passo"><b>01</b><strong>Ative a câmera</strong><p>Permita o acesso quando o navegador pedir.</p></div>
+      <div class="passo"><b>02</b><strong>Mostre a capa</strong><p>A IA identifica o livro e exibe os detalhes.</p></div>
+      <div class="passo"><b>03</b><strong>Registro automático</strong><p>O título entra na lista com a data de devolução.</p></div>
+      <div class="passo"><b>04</b><strong>Comprovante</strong><p>Finalize e receba o comprovante com QR code.</p></div>
+    </div>
+  </section>
 </main>
+
 <script src="js/catalog.js"></script>
 <script src="js/catalogo-pag.js"></script>
+<script>
+  // Script de atualização do relógio
+  function atualizarRelogio() {
+    const agora = new Date();
+    const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const data = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (document.getElementById("relogio")) document.getElementById("relogio").textContent = hora;
+    if (document.getElementById("data-atual")) document.getElementById("data-atual").textContent = data;
+  }
+  setInterval(atualizarRelogio, 1000);
+  atualizarRelogio();
+
+  // Script do Modal de Inicialização / Cadastro
+  function verificarUsuarioIndex() {
+    const nome = localStorage.getItem('usuario_nome');
+    const area = localStorage.getItem('usuario_area');
+    const modal = document.getElementById('modal-boas-vindas');
+    const saudacaoEl = document.getElementById('saudacao');
+    const btnTrocar = document.getElementById('btn-trocar-usuario');
+
+    if (nome) {
+      modal.classList.add('hidden');
+      if (saudacaoEl) {
+        const horaAtual = new Date().getHours();
+        const comprimento = horaAtual < 12 ? 'Bom dia' : horaAtual < 18 ? 'Boa tarde' : 'Boa noite';
+        saudacaoEl.textContent = `${comprimento}, ${nome}!`;
+      }
+      if (btnTrocar) btnTrocar.classList.remove('hidden');
+    } else {
+      modal.classList.remove('hidden');
+      if (btnTrocar) btnTrocar.classList.add('hidden');
+    }
+  }
+
+  function salvarUsuarioIndex(e) {
+    e.preventDefault();
+    const nome = document.getElementById('nome-usuario').value;
+    const area = document.getElementById('meta-leitura').value;
+
+    localStorage.setItem('usuario_nome', nome);
+    localStorage.setItem('usuario_area', area);
+    verificarUsuarioIndex();
+  }
+
+  function trocarUsuarioIndex() {
+    localStorage.removeItem('usuario_nome');
+    localStorage.removeItem('usuario_area');
+    verificarUsuarioIndex();
+  }
+
+  document.addEventListener('DOMContentLoaded', verificarUsuarioIndex);
+
+function verificarUsuarioIndex() {
+  const nome = localStorage.getItem('usuario_nome');
+  const modal = document.getElementById('modal-boas-vindas');
+  const saudacaoEl = document.getElementById('saudacao');
+  const btnTrocar = document.getElementById('btn-trocar-usuario');
+
+  // Calcula a hora atual para definir a saudação
+  const horaAtual = new Date().getHours();
+  const cumprimento = horaAtual < 12 ? 'Bom dia' : horaAtual < 18 ? 'Boa tarde' : 'Boa noite';
+
+  if (nome) {
+    if (modal) modal.classList.add('hidden');
+    if (saudacaoEl) {
+      saudacaoEl.textContent = `${cumprimento}, ${nome}! 👋`;
+    }
+    if (btnTrocar) btnTrocar.classList.remove('hidden');
+  } else {
+    if (modal) modal.classList.remove('hidden');
+    if (saudacaoEl) {
+      saudacaoEl.textContent = `${cumprimento}! Bem-vindo à Biblioteca Digital`;
+    }
+    if (btnTrocar) btnTrocar.classList.add('hidden');
+  }
+}
+
+// Executa assim que a página carrega
+document.addEventListener('DOMContentLoaded', verificarUsuarioIndex);
+
+</script>
 </body>
 </html>

@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Atendimento — Biblioteca Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="index.html">📚 Biblioteca Digital</a>
+  <a class="brand" href="index.html">BIBLIOTECA<small>DIGITAL · TERMINAL</small></a>
   <nav class="nav">
     <a href="index.html">Início</a>
     <a href="atendimento.html" class="ativo">Atendimento</a>
@@ -31,7 +33,7 @@
         </div>
         <p id="texto-scanner" class="scan-text">Câmera desativada</p>
         <p id="status-leitura" class="mut"></p>
-        <button id="btn-camera" class="btn block" type="button">Ativar câmera</button>
+        <button id="btn-camera" class="btn block" type="button" style="margin-top:12px">Ativar câmera</button>
       </section>
 
       <section id="card-livro" class="card hidden">
@@ -50,11 +52,11 @@
 
     <aside class="stack">
       <section class="card">
-        <h2>Atendimento atual</h2>
+        <p class="kicker">Atendimento atual</p>
         <div class="contador" id="contador-volumes">0</div>
         <div class="bar"><div id="progresso-sessao"></div></div>
         <p id="texto-contador" class="mut"></p>
-        <h3>Histórico da sessão <span id="total-historico" class="badge">0 livros</span></h3>
+        <h3 style="margin-top:18px">Histórico da sessão <span id="total-historico" class="badge">0 livros</span></h3>
         <ul id="lista-historico" class="history"></ul>
         <button id="btn-finalizar" class="btn block" type="button" disabled>Finalizar e emitir comprovante</button>
       </section>
@@ -64,7 +66,8 @@
 
 <div id="modal-comprovante" class="modal hidden">
   <div class="modal-conteudo">
-    <h2>📄 Comprovante de Empréstimo</h2>
+    <p class="kicker">Biblioteca Digital</p>
+    <h2>Comprovante de Empréstimo</h2>
     <p>Sessão: <strong id="recibo-id"></strong><br>Data: <span id="recibo-data"></span><br>Total de livros: <span id="recibo-qtd"></span></p>
     <ul id="recibo-livros"></ul>
     <div id="qrcode-container"></div>

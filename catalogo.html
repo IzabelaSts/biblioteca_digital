@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Catálogo — Biblioteca Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="index.html">📚 Biblioteca Digital</a>
+  <a class="brand" href="index.html">BIBLIOTECA<small>DIGITAL · TERMINAL</small></a>
   <nav class="nav">
     <a href="index.html">Início</a>
     <a href="atendimento.html">Atendimento</a>
@@ -16,11 +18,12 @@
   </nav>
 </header>
 <main>
-  <h1>Catálogo</h1>
-  <p class="mut">Consulte os livros, as sinopses e a disponibilidade para empréstimo.</p>
+  <p class="kicker">Acervo</p>
+  <h1 style="font-size:2.4rem">Catálogo</h1>
+  <p class="mut">Consulte sinopses, categorias e a disponibilidade para empréstimo.</p>
   <input id="busca" class="busca" type="search" placeholder="Buscar por título ou autor...">
   <div id="filtros" class="chips"></div>
-  <div id="grade-catalogo" class="grid"></div>
+  <div id="grade-catalogo" class="grid-livros"></div>
   <p id="vazio" class="mut hidden">Nenhum livro encontrado.</p>
 </main>
 <script src="js/catalog.js"></script>
