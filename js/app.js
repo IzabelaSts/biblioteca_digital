@@ -8,19 +8,19 @@
 // Link do modelo exportado do Teachable Machine
 const URL_MODELO = "https://teachablemachine.withgoogle.com/models/8_uI-T1lu/";
 
-// Confiança mínima para aceitar um livro (0.85 = 85% de certeza para evitar falsos positivos)
+// Confiança mínima necessária para considerar uma leitura válida
 const LIMIAR_RECONHECIMENTO = 0.85;
 
-// Quantos quadros seguidos o MESMO livro precisa aparecer (4 quadros para maior precisão)
-const QUADROS_PARA_CONFIRMAR = 4;
+// Diferença mínima necessária entre a 1ª e a 2ª maior probabilidade (evita indecisão com objetos genéricos)
+const MARGEM_INDECISAO = 0.30;
 
-// Nome da classe "sem livro" criada no Teachable Machine (ajuste se usou outro nome)
-const CLASSE_FUNDO = "Fundo";
+// Quantos quadros seguidos o MESMO livro precisa aparecer continuamente
+const QUADROS_PARA_CONFIRMAR = 5;
 
 // Espelhar a imagem da webcam
 const ESPELHAR_IMAGEM = false;
 
-// Modo de depuração (ponha true para ver todas as probabilidades no ecra)
+// Modo de depuração (true para exibir probabilidades na tela)
 const MODO_DEPURACAO = false;
 
 const LIMITE_VOLUMES = 10;
@@ -249,6 +249,7 @@ async function preverLivro() {
 
   const ordenadas = [...previsoes].sort((a, b) => b.probability - a.probability);
   const melhor = ordenadas[0];
+  const segundoMelhor = ordenadas[1];
   const idLivro = melhor.className;
   const porcentagem = Math.round(melhor.probability * 100);
 
@@ -258,15 +259,32 @@ async function preverLivro() {
       : `Lendo: '${idLivro}' (${porcentagem}%).`;
   }
 
-  // Se for a classe de fundo OU se a confiança for inferior a 85% (0.85)
-  if (idLivro === CLASSE_FUNDO || melhor.probability < LIMIAR_RECONHECIMENTO) {
+  // 1. Filtro de confiança mínima (se for menor que 82%)
+  if (melhor.probability < LIMIAR_RECONHECIMENTO) {
     reiniciarConfirmacao();
-    ultimoLivroLido = null;
-    if ($("texto-scanner")) $("texto-scanner").textContent = "À procura de um livro...";
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
+    mostrarErroLivro("Esta capa não pertence a nenhum livro cadastrado no catálogo.");
     return;
   }
 
-  // Confirmação por quadros consecutivos
+  // 2. Filtro de indecisão (se a diferença para o segundo melhor for menor que 30%)
+  if (segundoMelhor && (melhor.probability - segundoMelhor.probability < MARGEM_INDECISAO)) {
+    reiniciarConfirmacao();
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
+    mostrarErroLivro("Objeto não reconhecido no catálogo.");
+    return;
+  }
+
+  // 3. Validação estrita no arquivo catalog.js
+  const existeNoCatalogo = localizarNoCatalogo(idLivro);
+  if (!existeNoCatalogo) {
+    reiniciarConfirmacao();
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
+    mostrarErroLivro(`A classe '${idLivro}' não está cadastrada no catálogo.`);
+    return;
+  }
+
+  // 4. Validação de quadros consecutivos estáveis
   if (idLivro === candidato) {
     contagemCandidato++;
   } else {
@@ -275,18 +293,18 @@ async function preverLivro() {
   }
 
   if (contagemCandidato < QUADROS_PARA_CONFIRMAR) {
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Confirmando leitura...";
+    if ($("texto-scanner")) $("texto-scanner").textContent = `Confirmando... (${contagemCandidato}/${QUADROS_PARA_CONFIRMAR})`;
     return;
   }
 
-  if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido!";
-
-  // Impede reprocessamento do mesmo livro enquanto mantido em frente à câmara
+  // 5. Se o livro já tiver sido lido nesta mesma exibição
   if (idLivro === ultimoLivroLido) {
     if ($("texto-scanner")) $("texto-scanner").textContent = "Livro já lido — mostre o próximo livro";
     return;
   }
 
+  // 6. Sucesso: registra o empréstimo
+  if ($("texto-scanner")) $("texto-scanner").textContent = "Livro reconhecido!";
   ultimoLivroLido = idLivro;
   processarEmprestimo(idLivro);
 }
@@ -368,6 +386,7 @@ function processarEmprestimo(idReconhecido) {
     `Empréstimo registrado! Devolução até ${formatarData(dataDevolucao)} (${livro.prazoDias} dias). Mostre o próximo livro.`,
     "success"
   );
+
   atualizarHistoricoDOM();
   mostrarRecomendacoes(id, livro);
 
