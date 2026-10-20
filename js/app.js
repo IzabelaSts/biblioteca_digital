@@ -492,7 +492,7 @@ function atualizarHistoricoDOM() {
       </li>
     `;
   } else {
-    historicoSessao.forEach((livro) => {
+    historicoSessao.forEach((livro, index) => {
       const item = document.createElement("li");
       item.className = "history-item";
 
@@ -514,11 +514,45 @@ function atualizarHistoricoDOM() {
       devolucao.textContent = `Devolução: ${formatarData(livro.dataDevolucao)}`;
 
       copia.append(titulo, categoria, devolucao);
-      item.append(icone, copia);
+
+      // Botão de remoção com escuta de evento direta
+      const btnRemover = document.createElement("button");
+      btnRemover.type = "button";
+      btnRemover.className = "btn-remover-item";
+      btnRemover.setAttribute("aria-label", "Remover livro");
+      btnRemover.textContent = "✕";
+      
+      btnRemover.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removerLivroDoHistorico(index);
+      });
+
+      item.append(icone, copia, btnRemover);
       lista.appendChild(item);
     });
   }
   atualizarInterfaceSessao();
+}
+
+function removerLivroDoHistorico(index) {
+  if (index >= 0 && index < historicoSessao.length) {
+    const [livroRemovido] = historicoSessao.splice(index, 1);
+
+    // Se o livro removido for o último lido pela câmara, permite re-escanear
+    if (ultimoLivroLido === livroRemovido.id) {
+      ultimoLivroLido = null;
+    }
+
+    // Esconde o card principal de detalhes se pertencer ao livro removido
+    $("card-livro")?.classList.add("hidden");
+
+    // Atualiza a lista na interface e a contagem de volumes
+    atualizarHistoricoDOM();
+
+    if ($("status-leitura")) {
+      $("status-leitura").textContent = `"${livroRemovido.titulo}" foi removido da estante.`;
+    }
+  }
 }
 
 function atualizarInterfaceSessao() {

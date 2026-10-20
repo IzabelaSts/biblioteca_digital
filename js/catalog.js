@@ -27,7 +27,7 @@ const CATALOGO_LIVROS = {
     sinopse: "Dois jovens apaixonados enfrentam o conflito entre suas famílias.",
     prazoDias: 7,
     restricao: false,
-    imagem: "img/julieta.webp"
+    imagem: "img/julieta.jpg"
   },
   "pequeno_principe": {
     titulo: "O Pequeno Príncipe",
