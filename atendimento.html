@@ -64,8 +64,34 @@
   </div>
 </main>
 
+<!-- Modal de Revisão do Empréstimo -->
+<div id="modal-revisao" class="modal hidden">
+  <div class="modal-conteudo">
+    <button id="btn-fechar-revisao" class="close-btn" type="button" aria-label="Fechar">✕</button>
+    <p class="kicker">Biblioteca Digital</p>
+    <h2>Detalhes do Empréstimo</h2>
+    <p class="mut">Confira a lista dos livros e os prazos de devolução antes de gerar o comprovante final com QR Code.</p>
+    
+    <div style="margin: 16px 0;">
+      <h3>Itens selecionados nesta sessão:</h3>
+      <ul id="revisao-lista-livros" class="history" style="max-height: 240px; overflow-y: auto;"></ul>
+    </div>
+
+    <div id="revisao-status-prazos" class="loan-status success" style="margin-bottom: 16px; font-size: 0.85rem;">
+      ✓ Todos os prazos de devolução foram calculados corretamente.
+    </div>
+
+    <div class="btns">
+      <button id="btn-confirmar-emprestimo" class="btn block" type="button">Confirmar e Gerar QR Code</button>
+      <button id="btn-voltar-revisao" class="btn sec block" type="button">Voltar e Alterar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal do Comprovante Final com QR Code -->
 <div id="modal-comprovante" class="modal hidden">
   <div class="modal-conteudo">
+    <button id="btn-fechar-modal" class="close-btn" type="button" aria-label="Fechar">✕</button>
     <p class="kicker">Biblioteca Digital</p>
     <h2>Comprovante de Empréstimo</h2>
     <p>Sessão: <strong id="recibo-id"></strong><br>Data: <span id="recibo-data"></span><br>Total de livros: <span id="recibo-qtd"></span></p>
@@ -74,7 +100,6 @@
     <div class="btns">
       <button id="btn-imprimir" class="btn sec" type="button">Imprimir</button>
       <button id="btn-nova-sessao" class="btn" type="button">Novo atendimento</button>
-      <button id="btn-fechar-modal" class="btn sec" type="button">Fechar</button>
     </div>
   </div>
 </div>

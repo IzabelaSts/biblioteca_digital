@@ -11,7 +11,7 @@ const URL_MODELO = "https://teachablemachine.withgoogle.com/models/8_uI-T1lu/";
 // Confiança mínima necessária para considerar uma leitura válida
 const LIMIAR_RECONHECIMENTO = 0.85;
 
-// Diferença mínima necessária entre a 1ª e a 2ª maior probabilidade (evita indecisão com objetos genéricos)
+// Diferença mínima necessária entre a 1ª e a 2ª maior probabilidade (evita indecisão)
 const MARGEM_INDECISAO = 0.30;
 
 // Quantos quadros seguidos o MESMO livro precisa aparecer continuamente
@@ -42,6 +42,9 @@ let sessaoID = null;
 let candidato = null;
 let contagemCandidato = 0;
 
+// Trava temporária para evitar a oscilação/flicker das informações na tela
+let pausaDetecao = false;
+
 const $ = (id) => document.getElementById(id);
 
 document.addEventListener("DOMContentLoaded", iniciarAplicacao);
@@ -54,7 +57,13 @@ function iniciarAplicacao() {
   configurarBotaoCamera();
   mostrarBoasVindas();
 
-  $("btn-finalizar")?.addEventListener("click", finalizarAtendimento);
+  // Escutadores para finalizar / revisar atendimento
+  $("btn-finalizar")?.addEventListener("click", solicitarRevisaoOuFinalizar);
+  $("btn-fechar-revisao")?.addEventListener("click", fecharRevisaoModal);
+  $("btn-voltar-revisao")?.addEventListener("click", fecharRevisaoModal);
+  $("btn-confirmar-emprestimo")?.addEventListener("click", emitirComprovanteFinal);
+
+  // Escutadores do comprovante final
   $("btn-fechar-modal")?.addEventListener("click", fecharModal);
   $("btn-nova-sessao")?.addEventListener("click", fecharModal);
   $("btn-imprimir")?.addEventListener("click", imprimirComprovante);
@@ -124,8 +133,15 @@ function configurarBotaoCamera() {
       pararCamera();
       return;
     }
-    const modalAberto = !$("modal-comprovante")?.classList.contains("hidden");
-    if (!modalAberto) atendimentoFinalizado = false;
+
+    const modalComprovanteAberto = !$("modal-comprovante")?.classList.contains("hidden");
+    const modalRevisaoAberto = !$("modal-revisao")?.classList.contains("hidden");
+    const modalAberto = modalComprovanteAberto || modalRevisaoAberto;
+
+    if (!modalAberto) {
+      atendimentoFinalizado = false;
+    }
+
     await iniciarReconhecimento();
   });
 }
@@ -182,6 +198,7 @@ async function iniciarReconhecimento() {
     }
 
     cameraAtiva = true;
+    pausaDetecao = false;
     reiniciarConfirmacao();
 
     if ($("btn-camera")) {
@@ -244,6 +261,9 @@ async function loopReconhecimento() {
 }
 
 async function preverLivro() {
+  // Se a pausa estiver ativa, ignora novas análises para estabilizar a interface
+  if (pausaDetecao || !cameraAtiva || !webcam || !model) return;
+
   const previsoes = await model.predict(webcam.canvas);
   if (!previsoes?.length || !cameraAtiva) return;
 
@@ -259,23 +279,22 @@ async function preverLivro() {
       : `Lendo: '${idLivro}' (${porcentagem}%).`;
   }
 
-  // 1. Filtro de confiança mínima (se for menor que 82%)
+  // 1. Filtro de confiança mínima
   if (melhor.probability < LIMIAR_RECONHECIMENTO) {
     reiniciarConfirmacao();
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
-    mostrarErroLivro("Esta capa não pertence a nenhum livro cadastrado no catálogo.");
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Aguardando capa de livro...";
+    // NÃO chama mostrarErroLivro() aqui para evitar que o cartão pisque!
     return;
   }
 
-  // 2. Filtro de indecisão (se a diferença para o segundo melhor for menor que 30%)
+  // 2. Filtro de indecisão
   if (segundoMelhor && (melhor.probability - segundoMelhor.probability < MARGEM_INDECISAO)) {
     reiniciarConfirmacao();
-    if ($("texto-scanner")) $("texto-scanner").textContent = "Livro não cadastrado";
-    mostrarErroLivro("Objeto não reconhecido no catálogo.");
+    if ($("texto-scanner")) $("texto-scanner").textContent = "Ajuste a posição do livro";
     return;
   }
 
-  // 3. Validação estrita no arquivo catalog.js
+  // 3. Validação no catálogo
   const existeNoCatalogo = localizarNoCatalogo(idLivro);
   if (!existeNoCatalogo) {
     reiniciarConfirmacao();
@@ -284,7 +303,7 @@ async function preverLivro() {
     return;
   }
 
-  // 4. Validação de quadros consecutivos estáveis
+  // 4. Validação de quadros consecutivos
   if (idLivro === candidato) {
     contagemCandidato++;
   } else {
@@ -347,7 +366,7 @@ function recomendarMesmaArea(idAtual, livroAtual) {
 /* -------------------------------- EMPRÉSTIMO ------------------------------- */
 
 function processarEmprestimo(idReconhecido) {
-  if (atendimentoFinalizado) return;
+  if (atendimentoFinalizado || pausaDetecao) return;
 
   const encontrado = localizarNoCatalogo(idReconhecido);
 
@@ -358,6 +377,12 @@ function processarEmprestimo(idReconhecido) {
 
   const { id, livro } = encontrado;
   mostrarDetalhesLivro(id, livro);
+
+  // Ativa a pausa de 3 segundos para dar tempo do utilizador remover o livro da câmara sem oscilar a tela
+  pausaDetecao = true;
+  setTimeout(() => {
+    pausaDetecao = false;
+  }, 3000);
 
   if (livro.restricao) {
     definirEstadoEmprestimo(`Consulta local apenas. "${livro.titulo}" indisponível para empréstimo.`, "error");
@@ -474,6 +499,7 @@ function calcularDevolucao(prazoDias) {
 }
 
 function formatarData(data) {
+  if (!(data instanceof Date) || isNaN(data)) return "--/--/----";
   return data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
@@ -495,6 +521,12 @@ function atualizarHistoricoDOM() {
     historicoSessao.forEach((livro, index) => {
       const item = document.createElement("li");
       item.className = "history-item";
+      item.style.cursor = "pointer";
+
+      // Clique no cartão abre os detalhes no painel principal
+      item.addEventListener("click", () => {
+        mostrarDetalhesLivro(livro.id, livro);
+      });
 
       const icone = document.createElement("span");
       icone.className = "history-book-icon";
@@ -515,7 +547,7 @@ function atualizarHistoricoDOM() {
 
       copia.append(titulo, categoria, devolucao);
 
-      // Botão de remoção com escuta de evento direta
+      // Botão de remoção (X)
       const btnRemover = document.createElement("button");
       btnRemover.type = "button";
       btnRemover.className = "btn-remover-item";
@@ -523,7 +555,7 @@ function atualizarHistoricoDOM() {
       btnRemover.textContent = "✕";
       
       btnRemover.addEventListener("click", (e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Evita abrir os detalhes ao clicar no X
         removerLivroDoHistorico(index);
       });
 
@@ -535,23 +567,31 @@ function atualizarHistoricoDOM() {
 }
 
 function removerLivroDoHistorico(index) {
-  if (index >= 0 && index < historicoSessao.length) {
-    const [livroRemovido] = historicoSessao.splice(index, 1);
+  if (!Array.isArray(historicoSessao) || index < 0 || index >= historicoSessao.length) {
+    console.warn("Índice inválido para remoção:", index);
+    return;
+  }
 
-    // Se o livro removido for o último lido pela câmara, permite re-escanear
-    if (ultimoLivroLido === livroRemovido.id) {
-      ultimoLivroLido = null;
-    }
+  const removidos = historicoSessao.splice(index, 1);
+  const livroRemovido = removidos[0];
 
-    // Esconde o card principal de detalhes se pertencer ao livro removido
-    $("card-livro")?.classList.add("hidden");
+  if (!livroRemovido) return;
 
-    // Atualiza a lista na interface e a contagem de volumes
-    atualizarHistoricoDOM();
+  if (ultimoLivroLido === livroRemovido.id) {
+    ultimoLivroLido = null;
+  }
 
-    if ($("status-leitura")) {
-      $("status-leitura").textContent = `"${livroRemovido.titulo}" foi removido da estante.`;
-    }
+  const cardLivro = $("card-livro");
+  if (cardLivro) {
+    cardLivro.classList.add("hidden");
+  }
+
+  atualizarHistoricoDOM();
+
+  const statusLeitura = $("status-leitura");
+  if (statusLeitura) {
+    const titulo = livroRemovido.titulo || "O livro";
+    statusLeitura.textContent = `"${titulo}" foi removido da estante.`;
   }
 }
 
@@ -569,7 +609,62 @@ function atualizarInterfaceSessao() {
   }
 }
 
-/* -------------------------------- COMPROVANTE ----------------------------- */
+/* ---------------------- MODAL DE REVISÃO E COMPROVANTE -------------------- */
+
+function solicitarRevisaoOuFinalizar() {
+  if (historicoSessao.length === 0 || atendimentoFinalizado) return;
+
+  const modalRevisao = $("modal-revisao");
+  if (modalRevisao) {
+    abrirRevisaoModal();
+  } else {
+    finalizarAtendimento();
+  }
+}
+
+function abrirRevisaoModal() {
+  const containerLista = $("revisao-lista-livros");
+  if (containerLista) {
+    containerLista.replaceChildren();
+
+    historicoSessao.forEach((livro) => {
+      const item = document.createElement("li");
+      item.className = "history-item";
+
+      const icone = document.createElement("span");
+      icone.className = "history-book-icon";
+      definirCapa(icone, livro);
+
+      const copia = document.createElement("div");
+      copia.className = "history-book-copy";
+
+      const titulo = document.createElement("strong");
+      titulo.textContent = livro.titulo;
+
+      const categoria = document.createElement("small");
+      categoria.textContent = `${livro.area || ''} • ${livro.categoria || ''}`;
+
+      const devolucao = document.createElement("small");
+      devolucao.className = "history-due";
+      devolucao.textContent = `Devolução em: ${formatarData(livro.dataDevolucao)} (${livro.prazoDias || 14} dias)`;
+
+      copia.append(titulo, categoria, devolucao);
+      item.append(icone, copia);
+      containerLista.appendChild(item);
+    });
+  }
+
+  $("modal-revisao")?.classList.remove("hidden");
+}
+
+function fecharRevisaoModal() {
+  $("modal-revisao")?.classList.add("hidden");
+}
+
+function emitirComprovanteFinal() {
+  fecharRevisaoModal();
+  finalizarAtendimento();
+}
 
 function finalizarAtendimento() {
   if (historicoSessao.length === 0 || atendimentoFinalizado) return;
@@ -598,7 +693,7 @@ function finalizarAtendimento() {
     if (window.QRCode) {
       try {
         new QRCode(qrContainer, {
-          text: `Sessao ${sessaoID} - ${historicoSessao.length} livro(s)`,
+          text: `Sessão: ${sessaoID}\nLivros: ${historicoSessao.length}`,
           width: 130,
           height: 130
         });
@@ -621,6 +716,7 @@ function fecharModal() {
   historicoSessao = [];
   ultimoLivroLido = null;
   atendimentoFinalizado = false;
+  pausaDetecao = false;
   reiniciarConfirmacao();
 
   $("card-livro")?.classList.add("hidden");
@@ -636,6 +732,7 @@ function fecharModal() {
 
 function pararCamera() {
   cameraAtiva = false;
+  pausaDetecao = false;
 
   if (animFrameID) {
     window.cancelAnimationFrame(animFrameID);
